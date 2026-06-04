@@ -1277,6 +1277,9 @@ Backend handles:
 
 ## Database
 
+### ER Diagram
+https://app.eraser.io/workspace/JeaDmbwuGf3UoJgeNiq9?origin=share
+
 ### Engine
 
 PostgreSQL
