@@ -1,0 +1,255 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// prisma/schema.prisma
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // pooled connection (Supabase connection pooler)
+  directUrl = env("DIRECT_URL")     // direct connection (used for migrations only)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum EventStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  REGISTERED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+}
+
+enum ReportTargetType {
+  EVENT
+  USER
+}
+
+enum ReportReason {
+  FAKE_EVENT
+  SPAM
+  MISLEADING
+  INAPPROPRIATE
+  HARASSMENT
+  ABUSE
+  REPEATED_NO_SHOW
+  MALICIOUS
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  // id is NOT auto-generated here — it is set to the UUID that Supabase Auth
+  // assigns when the user signs in for the first time. Your app must create
+  // this row in a post-login callback using that same UUID.
+  id         String    @id
+  username   String    @unique
+  email      String    @unique
+  hostel     String
+  floor      Int
+  role       UserRole  @default(USER)
+  banned_at  DateTime?
+  ban_reason String?
+  createdAt  DateTime  @default(now())
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  hostedEvents         Event[]             @relation("EventHost")
+  eventParticipations  EventParticipant[]
+
+  // HostReview has two FKs pointing at User, so both sides need named relations.
+  hostReviewsReceived  HostReview[]        @relation("HostBeingReviewed")
+  hostReviewsWritten   HostReview[]        @relation("HostReviewAuthor")
+
+  // ParticipantReview also has two FKs pointing at User.
+  participantReviewsReceived  ParticipantReview[]  @relation("ParticipantBeingReviewed")
+  participantReviewsWritten   ParticipantReview[]  @relation("ParticipantReviewAuthor")
+
+  eventReviews  EventReview[]
+  reports       Report[]
+
+  @@map("users")
+}
+
+model Event {
+  id                String      @id @default(uuid())
+  eventname         String
+  event_description String
+  hostel_name       String
+  floor             Int
+  room_no           String      // string, not int — room numbers like "A-301" or "LG-4" are valid
+  host_id           String
+  event_time        DateTime
+  duration_minutes  Int         // needed so the cron job knows when to flip ACTIVE → COMPLETED
+  max_attendees     Int
+  event_status      EventStatus @default(UPCOMING)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  host               User                @relation("EventHost", fields: [host_id], references: [id])
+  participants       EventParticipant[]
+  hostReviews        HostReview[]
+  participantReviews ParticipantReview[]
+  eventReviews       EventReview[]
+
+  // ── Indexes ────────────────────────────────────────────────────────────────
+
+  // These are the fields you will filter and sort by most in GET /api/events.
+  @@index([event_status])
+  @@index([hostel_name])
+  @@index([event_time])
+  @@index([host_id])
+
+  @@map("events")
+}
+
+model EventParticipant {
+  id                String           @id @default(uuid())
+  event_id          String
+  user_id           String
+  attendance_status AttendanceStatus @default(REGISTERED)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt  // changes when host marks ATTENDED / NO_SHOW
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  // Cascade: if the event or user is deleted, their participation records go too.
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id],  references: [id], onDelete: Cascade)
+
+  // ── Constraints ────────────────────────────────────────────────────────────
+
+  // Enforces: a user can only register once per event.
+  @@unique([user_id, event_id])
+
+  @@index([event_id])
+  @@index([user_id])
+
+  @@map("event_participants")
+}
+
+model HostReview {
+  id          String   @id @default(uuid())
+  host_id     String
+  reviewer_id String
+  event_id    String
+  rating      Int      // 1–5 — validate the range in your API layer, not here
+  description String?  // optional per spec
+  createdAt   DateTime @default(now())
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  // Two FKs to User — Prisma requires distinct relation names or it cannot
+  // tell which back-reference on User maps to which FK here.
+  host     User  @relation("HostBeingReviewed", fields: [host_id],     references: [id], onDelete: Cascade)
+  reviewer User  @relation("HostReviewAuthor",  fields: [reviewer_id], references: [id], onDelete: Cascade)
+  event    Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  // ── Constraints ────────────────────────────────────────────────────────────
+
+  // Enforces: a reviewer can only review a given host once per event.
+  @@unique([reviewer_id, host_id, event_id])
+
+  @@map("host_reviews")
+}
+
+model ParticipantReview {
+  id             String   @id @default(uuid())
+  participant_id String
+  host_id        String
+  event_id       String
+  rating         Int      // 1–5 — validate the range in your API layer, not here
+  description    String?  // optional per spec
+  createdAt      DateTime @default(now())
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  // Two FKs to User — same named-relation requirement as HostReview above.
+  participant User  @relation("ParticipantBeingReviewed", fields: [participant_id], references: [id], onDelete: Cascade)
+  host        User  @relation("ParticipantReviewAuthor",  fields: [host_id],        references: [id], onDelete: Cascade)
+  event       Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  // ── Constraints ────────────────────────────────────────────────────────────
+
+  // Enforces: a host can only review a given participant once per event.
+  @@unique([host_id, participant_id, event_id])
+
+  @@map("participant_reviews")
+}
+
+model EventReview {
+  id          String   @id @default(uuid())
+  event_id    String
+  user_id     String
+  rating      Int      // 1–5 — validate the range in your API layer, not here
+  description String?  // optional per spec
+  createdAt   DateTime @default(now())
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id],  references: [id], onDelete: Cascade)
+
+  // ── Constraints ────────────────────────────────────────────────────────────
+
+  // Enforces: a user can only review a given event once.
+  @@unique([user_id, event_id])
+
+  @@map("event_reviews")
+}
+
+model Report {
+  id          String           @id @default(uuid())
+  reporter_id String
+  target_type ReportTargetType
+  target_id   String           // polymorphic — points at either an event.id or a user.id.
+                               // no DB-level FK here by design: a single FK cannot reference
+                               // two different tables. the app layer validates that target_id
+                               // actually exists for the given target_type.
+  reason      ReportReason
+  description String?
+  status      ReportStatus     @default(PENDING)
+  admin_note  String?          // filled in when an admin resolves or dismisses
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // ── Relations ──────────────────────────────────────────────────────────────
+
+  reporter User @relation(fields: [reporter_id], references: [id], onDelete: Cascade)
+
+  // ── Constraints ────────────────────────────────────────────────────────────
+
+  // Enforces: a user cannot file the same report against the same target twice.
+  @@unique([reporter_id, target_type, target_id])
+
+  @@index([status])
+  @@index([target_type, target_id])
+
+  @@map("reports")
+}
