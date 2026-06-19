@@ -4,10 +4,16 @@
  * Handles database connection and configuration
  */
 
-// This will be the Prisma client instance
-// In a real implementation, you would import from @prisma/client
-export const prisma = {
-  // Database client initialization
+import { PrismaClient } from "@prisma/client";
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
 };
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+}
 
 export default prisma;
