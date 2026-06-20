@@ -1,49 +1,129 @@
-/**
- * Review Repository
- * Data access layer for review operations
- * Handles database queries for reviews and ratings
- */
+import { Prisma } from "@prisma/client";
+import prisma from "../lib/prisma";
 
 export class ReviewRepository {
-  /**
-   * Find review by ID
-   */
-  static async findById(id: string) {
-    // Implementation will query database
+  static async findEventById(eventId: string) {
+    return prisma.event.findUnique({
+      where: { id: eventId },
+    });
   }
 
-  /**
-   * Find reviews by event ID
-   */
-  static async findByEventId(eventId: string) {
-    // Implementation will query database
+  static async findRegistration(userId: string, eventId: string) {
+    return prisma.eventParticipant.findUnique({
+      where: {
+        user_id_event_id: {
+          user_id: userId,
+          event_id: eventId,
+        },
+      },
+    });
   }
 
-  /**
-   * Find review by user and event
-   */
-  static async findByUserAndEvent(userId: string, eventId: string) {
-    // Implementation will query database
+  static async findEventReviewByUserAndEvent(userId: string, eventId: string) {
+    return prisma.eventReview.findUnique({
+      where: {
+        user_id_event_id: {
+          user_id: userId,
+          event_id: eventId,
+        },
+      },
+    });
   }
 
-  /**
-   * Create review
-   */
-  static async create(data: any) {
-    // Implementation will insert into database
+  static async findHostReviewByReviewerHostAndEvent(
+    reviewerId: string,
+    hostId: string,
+    eventId: string
+  ) {
+    return prisma.hostReview.findUnique({
+      where: {
+        reviewer_id_host_id_event_id: {
+          reviewer_id: reviewerId,
+          host_id: hostId,
+          event_id: eventId,
+        },
+      },
+    });
   }
 
-  /**
-   * Update review
-   */
-  static async update(id: string, data: any) {
-    // Implementation will update database
+  static async createEventAndHostReviews(data: {
+    eventReview: Prisma.EventReviewUncheckedCreateInput;
+    hostReview: Prisma.HostReviewUncheckedCreateInput;
+  }) {
+    return prisma.$transaction(async (tx) => {
+      const eventReview = await tx.eventReview.create({
+        data: data.eventReview,
+      });
+      const hostReview = await tx.hostReview.create({
+        data: data.hostReview,
+      });
+
+      return { eventReview, hostReview };
+    });
   }
 
-  /**
-   * Delete review
-   */
-  static async delete(id: string) {
-    // Implementation will delete from database
+  static async findEventReviews(eventId: string) {
+    return prisma.eventReview.findMany({
+      where: { event_id: eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  static async findParticipantReview(
+    hostId: string,
+    participantId: string,
+    eventId: string
+  ) {
+    return prisma.participantReview.findUnique({
+      where: {
+        host_id_participant_id_event_id: {
+          host_id: hostId,
+          participant_id: participantId,
+          event_id: eventId,
+        },
+      },
+      include: {
+        participant: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        host: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
+  static async createParticipantReview(data: Prisma.ParticipantReviewUncheckedCreateInput) {
+    return prisma.participantReview.create({
+      data,
+      include: {
+        participant: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        host: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
   }
 }

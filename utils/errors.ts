@@ -43,6 +43,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class BusinessRuleError extends AppError {
+  constructor(code: string, message: string) {
+    super(code, 422, message);
+  }
+}
+
 export function handleError(error: any) {
   // Implementation will handle errors uniformly
   return { code: "ERROR", status: 500, message: error.message };

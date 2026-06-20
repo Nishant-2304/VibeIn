@@ -1,46 +1,189 @@
-/**
- * Registration Service
- * Business logic for event registrations
- * Handles participant registration, cancellation, and status management
- */
+import { AppError, BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
+import { AttendanceStatus, EventStatus } from "@prisma/client";
+import { RegistrationRepository } from "../repositories/registration.repository";
+
+type Actor = {
+  userId?: string | null;
+  isAdmin?: boolean;
+};
+
+const CANCELLATION_CUTOFF_HOURS = 2;
+
+function activeAttendeeCount(event: { participants?: { attendance_status: string }[] }) {
+  return (
+    event.participants?.filter(
+      (participant) => participant.attendance_status !== AttendanceStatus.CANCELLED
+    ).length ?? 0
+  );
+}
+
+function assertActorIsHostOrAdmin(event: { host_id: string }, actor?: Actor) {
+  if (actor?.isAdmin) {
+    return;
+  }
+
+  if (!actor?.userId) {
+    return;
+  }
+
+  if (event.host_id !== actor.userId) {
+    throw new ForbiddenError("Only the event host or an admin can view registrations.");
+  }
+}
 
 export class RegistrationService {
-  /**
-   * Register user for event
-   */
-  static async registerForEvent(userId: string, eventId: string) {
-    // Implementation will register user
+  static async registerForEvent(userId: string | null | undefined, eventId: string) {
+    if (!userId) {
+      throw new UnauthorizedError("Authentication required.");
+    }
+
+    const [event, user, existingRegistration] = await Promise.all([
+      RegistrationRepository.findEventById(eventId),
+      RegistrationRepository.findUserById(userId),
+      RegistrationRepository.findByUserAndEvent(userId, eventId),
+    ]);
+
+    if (!event) {
+      throw new NotFoundError("Event not found.");
+    }
+
+    if (!user) {
+      throw new NotFoundError("User not found.");
+    }
+
+    if (user.banned_at) {
+      throw new ForbiddenError("Account is banned.");
+    }
+
+    if (existingRegistration && existingRegistration.attendance_status !== AttendanceStatus.CANCELLED) {
+      throw new AppError("ALREADY_REGISTERED", 409, "User is already registered for this event.");
+    }
+
+    if (![EventStatus.UPCOMING, EventStatus.ACTIVE].includes(event.event_status)) {
+      throw new BusinessRuleError("REGISTRATION_CLOSED", "Registration is closed for this event.");
+    }
+
+    if (activeAttendeeCount(event) >= event.max_attendees) {
+      throw new BusinessRuleError("EVENT_FULL", "Event is already at capacity.");
+    }
+
+    if (existingRegistration?.attendance_status === AttendanceStatus.CANCELLED) {
+      return RegistrationRepository.setAttendanceStatus(
+        existingRegistration.id,
+        AttendanceStatus.REGISTERED
+      );
+    }
+
+    return RegistrationRepository.create({
+      event_id: eventId,
+      user_id: userId,
+    });
   }
 
-  /**
-   * Cancel registration
-   */
-  static async cancelRegistration(userId: string, eventId: string) {
-    // Implementation will cancel registration
+  static async cancelRegistration(userId: string | null | undefined, eventId: string) {
+    if (!userId) {
+      throw new UnauthorizedError("Authentication required.");
+    }
+
+    const [event, registration] = await Promise.all([
+      RegistrationRepository.findEventById(eventId),
+      RegistrationRepository.findByUserAndEvent(userId, eventId),
+    ]);
+
+    if (!event) {
+      throw new NotFoundError("Event not found.");
+    }
+
+    if (!registration || registration.attendance_status === AttendanceStatus.CANCELLED) {
+      throw new NotFoundError("Registration not found.");
+    }
+
+    if ([EventStatus.COMPLETED, EventStatus.CANCELLED].includes(event.event_status)) {
+      throw new BusinessRuleError("REGISTRATION_CLOSED", "Registration cannot be cancelled for this event.");
+    }
+
+    const cutoffTime = new Date(event.event_time);
+    cutoffTime.setHours(cutoffTime.getHours() - CANCELLATION_CUTOFF_HOURS);
+
+    if (new Date() >= cutoffTime) {
+      throw new BusinessRuleError(
+        "CANCELLATION_WINDOW_CLOSED",
+        "Cancellation window has closed."
+      );
+    }
+
+    await RegistrationRepository.setAttendanceStatus(registration.id, AttendanceStatus.CANCELLED);
+
+    return { message: "Registration cancelled." };
   }
 
-  /**
-   * Get user's event registration
-   */
-  static async getUserRegistration(userId: string, eventId: string) {
-    // Implementation will fetch registration details
+  static async getUserRegistration(userId: string | null | undefined, eventId: string) {
+    if (!userId) {
+      throw new UnauthorizedError("Authentication required.");
+    }
+
+    const registration = await RegistrationRepository.findByUserAndEvent(userId, eventId);
+
+    if (!registration) {
+      throw new NotFoundError("Registration not found.");
+    }
+
+    return registration;
   }
 
-  /**
-   * Get all registrations for event
-   */
-  static async getEventRegistrations(eventId: string) {
-    // Implementation will fetch all registrations
+  static async getEventRegistrations(eventId: string, actor?: Actor) {
+    const event = await RegistrationRepository.findEventById(eventId);
+
+    if (!event) {
+      throw new NotFoundError("Event not found.");
+    }
+
+    assertActorIsHostOrAdmin(event, actor);
+
+    return RegistrationRepository.findByEventId(eventId);
   }
 
-  /**
-   * Update registration status
-   */
   static async updateRegistrationStatus(
     userId: string,
     eventId: string,
-    status: string
+    status: unknown,
+    actor?: Actor
   ) {
-    // Implementation will update status
+    const event = await RegistrationRepository.findEventById(eventId);
+
+    if (!event) {
+      throw new NotFoundError("Event not found.");
+    }
+
+    assertActorIsHostOrAdmin(event, actor);
+
+    if (![AttendanceStatus.ATTENDED, AttendanceStatus.NO_SHOW].includes(status as AttendanceStatus)) {
+      throw new ValidationError("attendanceStatus must be ATTENDED or NO_SHOW.");
+    }
+
+    if (![EventStatus.ACTIVE, EventStatus.COMPLETED].includes(event.event_status)) {
+      throw new BusinessRuleError(
+        "ATTENDANCE_NOT_ALLOWED",
+        "Event must be ACTIVE or COMPLETED to mark attendance."
+      );
+    }
+
+    const registration = await RegistrationRepository.findByUserAndEvent(userId, eventId);
+
+    if (!registration) {
+      throw new NotFoundError("Registration not found.");
+    }
+
+    if (registration.attendance_status === AttendanceStatus.CANCELLED) {
+      throw new BusinessRuleError(
+        "REGISTRATION_CANCELLED",
+        "Cannot mark attendance for a cancelled registration."
+      );
+    }
+
+    return RegistrationRepository.setAttendanceStatus(
+      registration.id,
+      status as AttendanceStatus
+    );
   }
 }

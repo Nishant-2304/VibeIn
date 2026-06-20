@@ -1,31 +1,28 @@
-/**
- * Current User Registration API Route Handler
- * GET: Get current user's registration for specific event
- * DELETE: Cancel current user's registration
- */
+// TODO(oauth): wire Supabase/OAuth auth once auth is set up.
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  // Handle GET request for current user's registration
-  return new Response(
-    JSON.stringify({
-      message: `GET /api/events/${params.id}/registrations/me`,
-    }),
-    { status: 200 }
-  );
-}
+import {
+  errorResponse,
+  handleRouteError,
+  jsonResponse,
+} from "../../../../../../lib/event-api";
+import { RegistrationService } from "../../../../../../services/registration.service";
 
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Handle DELETE request to cancel registration
-  return new Response(
-    JSON.stringify({
-      message: `DELETE /api/events/${params.id}/registrations/me`,
-    }),
-    { status: 200 }
-  );
+  const body = await request.json().catch(() => ({}));
+  const userId = request.headers.get("x-user-id") ?? body.userId;
+
+  if (!userId) {
+    return errorResponse("UNAUTHORIZED", "Authentication required.", 401);
+  }
+
+  try {
+    const result = await RegistrationService.cancelRegistration(userId, params.id);
+
+    return jsonResponse(result);
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }

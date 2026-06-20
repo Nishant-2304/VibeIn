@@ -1,31 +1,32 @@
-/**
- * Admin Event Status API Route Handler
- * GET: Retrieve event status information
- * PATCH: Update event status (admin only)
- */
-
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  // Handle GET request for event status (admin)
-  return new Response(
-    JSON.stringify({
-      message: `GET /api/admin/events/${params.id}/status`,
-    }),
-    { status: 200 }
-  );
-}
+import {
+  errorResponse,
+  formatEvent,
+  handleRouteError,
+  jsonResponse,
+} from "../../../../../../lib/admin-api";
+import { AdminService } from "../../../../../../services/admin.service";
 
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Handle PATCH request to update event status (admin)
-  return new Response(
-    JSON.stringify({
-      message: `PATCH /api/admin/events/${params.id}/status`,
-    }),
-    { status: 200 }
-  );
+  // TODO(oauth): enable once Supabase/OAuth auth is wired.
+  // const auth = await requireAdmin(request);
+  // if (!auth.isAdmin) {
+  //   return errorResponse("FORBIDDEN", "Admin access required.", 403);
+  // }
+
+  const body = await request.json().catch(() => null);
+
+  if (!body || typeof body !== "object") {
+    return errorResponse("VALIDATION_ERROR", "Request body must be JSON.", 400);
+  }
+
+  try {
+    const updatedEvent = await AdminService.updateEventStatus(params.id, body);
+
+    return jsonResponse(formatEvent(updatedEvent));
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }

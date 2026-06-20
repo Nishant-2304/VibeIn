@@ -1,21 +1,35 @@
-/**
- * Admin Reports API Route Handler
- * GET: Retrieve list of all reports in system (admin only)
- * POST: Process/create admin report
- */
+import {
+  formatReport,
+  handleRouteError,
+  jsonResponse,
+  pagination,
+  parsePagination,
+} from "../../../../lib/admin-api";
+import { AdminService } from "../../../../services/admin.service";
 
 export async function GET(request: Request) {
-  // Handle GET request for all reports (admin)
-  return new Response(
-    JSON.stringify({ message: "GET /api/admin/reports" }),
-    { status: 200 }
-  );
-}
+  // TODO(oauth): enable once Supabase/OAuth auth is wired.
+  // const auth = await requireAdmin(request);
+  // if (!auth.isAdmin) {
+  //   return errorResponse("FORBIDDEN", "Admin access required.", 403);
+  // }
 
-export async function POST(request: Request) {
-  // Handle POST request to create admin report
-  return new Response(
-    JSON.stringify({ message: "POST /api/admin/reports" }),
-    { status: 201 }
-  );
+  const { searchParams } = new URL(request.url);
+  const { page, limit, skip } = parsePagination(searchParams);
+  try {
+    const { reports, total } = await AdminService.getReports(
+      {
+        status: searchParams.get("status"),
+        targetType: searchParams.get("targetType"),
+      },
+      { skip, limit }
+    );
+
+    return jsonResponse({
+      reports: reports.map(formatReport),
+      pagination: pagination(page, limit, total),
+    });
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }

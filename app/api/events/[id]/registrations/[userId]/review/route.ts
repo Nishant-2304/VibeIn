@@ -1,45 +1,55 @@
 /**
- * User Review API Route Handler
- * GET: Get review by specific user for an event
- * POST: Submit/update review by user for event
- * DELETE: Delete user's review
+ * Per-participant Review API Route Handler
+ * POST: Host — submit a review of a specific participant for this event.
+ * GET: Participant, host, or admin — retrieve the host's review of a
+ *      specific participant for this event (404 if none exists).
  */
 
+// TODO(oauth): wire Supabase/OAuth auth once auth is set up.
+
+import {
+  errorResponse,
+  formatParticipantReview,
+  handleRouteError,
+  jsonResponse,
+} from "../../../../../../../lib/event-api";
+import { ReviewService } from "../../../../../../../services/review.service";
+
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string; userId: string } }
 ) {
-  // Handle GET request for user's review
-  return new Response(
-    JSON.stringify({
-      message: `GET /api/events/${params.id}/registrations/${params.userId}/review`,
-    }),
-    { status: 200 }
-  );
+  try {
+    const review = await ReviewService.getParticipantReview(
+      params.id,
+      params.userId
+    );
+
+    return jsonResponse(formatParticipantReview(review));
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }
 
 export async function POST(
   request: Request,
   { params }: { params: { id: string; userId: string } }
 ) {
-  // Handle POST request to create/update review
-  return new Response(
-    JSON.stringify({
-      message: `POST /api/events/${params.id}/registrations/${params.userId}/review`,
-    }),
-    { status: 201 }
-  );
-}
+  const body = await request.json().catch(() => null);
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string; userId: string } }
-) {
-  // Handle DELETE request to remove review
-  return new Response(
-    JSON.stringify({
-      message: `DELETE /api/events/${params.id}/registrations/${params.userId}/review`,
-    }),
-    { status: 200 }
-  );
+  if (!body || typeof body !== "object") {
+    return errorResponse("VALIDATION_ERROR", "Request body must be JSON.", 400);
+  }
+
+  try {
+    const review = await ReviewService.createParticipantReview(
+      params.id,
+      params.userId,
+      body
+    );
+
+    return jsonResponse(formatParticipantReview(review), 201);
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }
