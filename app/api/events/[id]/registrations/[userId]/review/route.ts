@@ -1,31 +1,32 @@
 /**
- * Per-participant Review API Route Handler
- * POST: Host — submit a review of a specific participant for this event.
- * GET: Participant, host, or admin — retrieve the host's review of a
- *      specific participant for this event (404 if none exists).
+ * User Review API Route Handler
+ * GET: Get review by specific user for an event
+ * POST: Submit/update review by user for event
+ * DELETE: Delete user's review
  */
 
-// TODO(oauth): wire Supabase/OAuth auth once auth is set up.
-
-import {
-  errorResponse,
-  formatParticipantReview,
-  handleRouteError,
-  jsonResponse,
-} from "../../../../../../../lib/event-api";
 import { ReviewService } from "../../../../../../../services/review.service";
+import { UserService } from "../../../../../../../services/user.service";
+import { UnauthorizedError } from "../../../../../../../utils/errors";
+import {
+  getBearerToken,
+  handleRouteError,
+  json,
+} from "../../../../../users/route-utils";
 
 export async function GET(
   _request: Request,
   { params }: { params: { id: string; userId: string } }
 ) {
   try {
-    const review = await ReviewService.getParticipantReview(
+    const currentUser = await getCurrentUser(request);
+    const review = await ReviewService.getParticipantReviewForViewer(
+      currentUser.id,
       params.id,
       params.userId
     );
 
-    return jsonResponse(formatParticipantReview(review));
+    return json(toParticipantReviewResponse(review));
   } catch (error) {
     return handleRouteError(error);
   }
@@ -35,21 +36,68 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string; userId: string } }
 ) {
-  const body = await request.json().catch(() => null);
-
-  if (!body || typeof body !== "object") {
-    return errorResponse("VALIDATION_ERROR", "Request body must be JSON.", 400);
-  }
-
   try {
+    const currentUser = await getCurrentUser(request);
+    const body = await request.json();
     const review = await ReviewService.createParticipantReview(
+      currentUser.id,
       params.id,
       params.userId,
       body
     );
 
-    return jsonResponse(formatParticipantReview(review), 201);
+    return json(toParticipantReviewResponse(review), 201);
   } catch (error) {
     return handleRouteError(error);
   }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string; userId: string } }
+) {
+  try {
+    const currentUser = await getCurrentUser(request);
+    const review = await ReviewService.getParticipantReview(
+      currentUser.id,
+      params.id,
+      params.userId
+    );
+
+    await ReviewService.deleteReview(review.id);
+
+    return json({ message: "Review deleted." });
+  } catch (error) {
+    return handleRouteError(error);
+  }
+}
+
+async function getCurrentUser(request: Request) {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    throw new UnauthorizedError("Authentication token is required");
+  }
+
+  return UserService.getCurrentUser(token);
+}
+
+function toParticipantReviewResponse(review: any) {
+  return {
+    id: review.id,
+    type: "PARTICIPANT",
+    rating: review.rating,
+    comment: review.description,
+    participant: toUser(review.participant),
+    reviewer: toUser(review.host),
+    eventId: review.event_id,
+    createdAt: review.createdAt,
+  };
+}
+
+function toUser(user: any) {
+  return {
+    id: user.id,
+    displayName: user.username,
+  };
 }

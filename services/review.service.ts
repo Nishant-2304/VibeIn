@@ -1,201 +1,306 @@
-import { AttendanceStatus, EventStatus } from "@prisma/client";
-import { AppError, BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
-import { ReviewRepository } from "../repositories/review.repository";
+/**
+ * Review Service
+ * Business logic for event reviews and ratings
+ * Handles review creation, updates, and rating calculations
+ */
 
-type Actor = {
-  userId?: string | null;
-  isAdmin?: boolean;
+import { AttendanceStatus, EventStatus } from "@prisma/client";
+import prisma from "../lib/prisma";
+import { ReviewRepository } from "../repositories/review.repository";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "../utils/errors";
+
+type EventReviewInput = {
+  eventRating?: number;
+  eventComment?: string;
+  hostRating?: number;
+  hostComment?: string;
+  rating?: number;
+  description?: string;
 };
 
-function validateRating(value: unknown, fieldName = "rating") {
-  const rating = Number(value);
-
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    throw new ValidationError(`${fieldName} must be an integer from 1 to 5.`);
-  }
-
-  return rating;
-}
-
-function validateComment(value: unknown, fieldName: string) {
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  if (typeof value !== "string") {
-    throw new ValidationError(`${fieldName} must be a string.`);
-  }
-
-  if (value.length > 500) {
-    throw new ValidationError(`${fieldName} must be 500 characters or fewer.`);
-  }
-
-  return value;
-}
+type ParticipantReviewInput = {
+  rating: number;
+  comment?: string;
+  description?: string;
+};
 
 export class ReviewService {
-  static async createReview(
-    userId: string | null | undefined,
-    eventId: string,
-    data: any
-  ) {
-    if (!userId) {
-      throw new UnauthorizedError("Authentication required.");
-    }
-
-    const event = await ReviewRepository.findEventById(eventId);
-
-    if (!event) {
-      throw new NotFoundError("Event not found.");
-    }
+  /**
+   * Create review for event
+   */
+  static async createReview(userId: string, eventId: string, data: EventReviewInput) {
+    const event = await this.getEventOrThrow(eventId);
 
     if (event.event_status !== EventStatus.COMPLETED) {
-      throw new BusinessRuleError(
-        "EVENT_NOT_COMPLETED",
-        "Event must be completed before reviews can be submitted."
-      );
+      throw new ValidationError("Reviews can only be submitted for completed events");
     }
 
-    const registration = await ReviewRepository.findRegistration(userId, eventId);
-
-    if (!registration || registration.attendance_status !== AttendanceStatus.ATTENDED) {
-      throw new BusinessRuleError(
-        "REVIEW_NOT_ALLOWED",
-        "Only attended participants can review this event."
-      );
+    if (event.host_id === userId) {
+      throw new ForbiddenError("Hosts cannot review their own event as a participant");
     }
 
-    const existingReview = await ReviewRepository.findEventReviewByUserAndEvent(
-      userId,
-      eventId
-    );
+    const registration = await this.getRegistrationOrThrow(userId, eventId);
 
-    if (existingReview) {
-      throw new AppError("DUPLICATE_REVIEW", 409, "User has already reviewed this event.");
+    if (registration.attendance_status !== AttendanceStatus.ATTENDED) {
+      throw new ForbiddenError("Only attended participants can review this event");
     }
 
-    const eventRating = validateRating(data.eventRating, "eventRating");
-    const hostRating = validateRating(data.hostRating, "hostRating");
-    const eventComment = validateComment(data.eventComment, "eventComment");
-    const hostComment = validateComment(data.hostComment, "hostComment");
+    const existing = await ReviewRepository.findByUserAndEvent(userId, eventId);
 
-    return ReviewRepository.createEventAndHostReviews({
+    if (existing.eventReview || existing.hostReview) {
+      throw new ConflictError("User has already reviewed this event");
+    }
+
+    const eventRating = this.readRating(data.eventRating ?? data.rating, "eventRating");
+    const hostRating = this.readRating(data.hostRating, "hostRating");
+
+    return ReviewRepository.createEventAndHostReview({
       eventReview: {
         event_id: eventId,
         user_id: userId,
         rating: eventRating,
-        description: eventComment,
+        description: this.normalizeComment(data.eventComment ?? data.description),
       },
       hostReview: {
+        event_id: eventId,
         host_id: event.host_id,
         reviewer_id: userId,
-        event_id: eventId,
         rating: hostRating,
-        description: hostComment,
+        description: this.normalizeComment(data.hostComment),
       },
     });
   }
 
-  static async getEventReviews(eventId: string) {
-    const event = await ReviewRepository.findEventById(eventId);
+  /**
+   * Update review
+   */
+  static async updateReview(reviewId: string, data: EventReviewInput) {
+    const review = await ReviewRepository.findById(reviewId);
 
-    if (!event) {
-      throw new NotFoundError("Event not found.");
+    if (!review) {
+      throw new NotFoundError("Review not found");
     }
 
-    return ReviewRepository.findEventReviews(eventId);
+    const rating = data.rating ?? data.eventRating;
+    const description = data.description ?? data.eventComment ?? data.hostComment;
+    const updateData: any = { type: review.type };
+
+    if (rating !== undefined) {
+      updateData.rating = this.readRating(rating, "rating");
+    }
+
+    if (description !== undefined) {
+      updateData.description = this.normalizeComment(description);
+    }
+
+    if (Object.keys(updateData).length === 1) {
+      throw new ValidationError("No valid review fields provided");
+    }
+
+    return ReviewRepository.update(reviewId, updateData);
   }
 
-  static async createParticipantReview(
-    eventId: string,
-    participantId: string,
-    data: any,
-    actor?: Actor
-  ) {
-    const event = await ReviewRepository.findEventById(eventId);
+  /**
+   * Delete review
+   */
+  static async deleteReview(reviewId: string) {
+    const deleted = await ReviewRepository.delete(reviewId);
 
-    if (!event) {
-      throw new NotFoundError("Event not found.");
+    if (!deleted) {
+      throw new NotFoundError("Review not found");
     }
 
-    if (actor?.userId && actor.userId !== event.host_id) {
-      throw new ForbiddenError("Only the event host can review participants.");
+    return deleted;
+  }
+
+  /**
+   * Get event reviews
+   */
+  static async getEventReviews(eventId: string) {
+    await this.getEventOrThrow(eventId);
+
+    return ReviewRepository.findByEventId(eventId);
+  }
+
+  /**
+   * Get user's review for event
+   */
+  static async getUserReview(userId: string, eventId: string) {
+    await this.getEventOrThrow(eventId);
+
+    const review = await ReviewRepository.findByUserAndEvent(userId, eventId);
+
+    if (!review.eventReview && !review.hostReview && !review.participantReview) {
+      throw new NotFoundError("Review not found");
+    }
+
+    return review;
+  }
+
+  /**
+   * Calculate event average rating
+   */
+  static async calculateEventRating(eventId: string) {
+    await this.getEventOrThrow(eventId);
+
+    const result = await ReviewRepository.calculateEventRating(eventId);
+    const reviewCount = result._count.rating;
+    const totalRating = result._sum.rating ?? 0;
+
+    return {
+      averageRating: reviewCount > 0 ? totalRating / reviewCount : 0,
+      totalRating,
+      reviewCount,
+    };
+  }
+
+  /**
+   * Create host review for a participant
+   */
+  static async createParticipantReview(
+    hostId: string,
+    eventId: string,
+    participantId: string,
+    data: ParticipantReviewInput
+  ) {
+    const event = await this.getEventOrThrow(eventId);
+
+    if (event.host_id !== hostId) {
+      throw new ForbiddenError("Only the event host can review participants");
     }
 
     if (event.event_status !== EventStatus.COMPLETED) {
-      throw new BusinessRuleError(
-        "EVENT_NOT_COMPLETED",
-        "Event must be completed before participant reviews can be submitted."
-      );
+      throw new ValidationError("Participant reviews require a completed event");
     }
 
-    const registration = await ReviewRepository.findRegistration(participantId, eventId);
+    const registration = await this.getRegistrationOrThrow(participantId, eventId);
 
     if (
-      !registration ||
-      ![AttendanceStatus.ATTENDED, AttendanceStatus.NO_SHOW].includes(
-        registration.attendance_status
-      )
+      registration.attendance_status !== AttendanceStatus.ATTENDED &&
+      registration.attendance_status !== AttendanceStatus.NO_SHOW
     ) {
-      throw new BusinessRuleError(
-        "PARTICIPANT_REVIEW_NOT_ALLOWED",
-        "Target user must have ATTENDED or NO_SHOW attendance status."
-      );
+      throw new ValidationError("Participant must be marked attended or no-show");
     }
 
-    const existingReview = await ReviewRepository.findParticipantReview(
-      event.host_id,
+    const existing = await ReviewRepository.findParticipantReview(
+      hostId,
       participantId,
       eventId
     );
 
-    if (existingReview) {
-      throw new AppError(
-        "DUPLICATE_REVIEW",
-        409,
-        "Host has already reviewed this participant for this event."
-      );
+    if (existing) {
+      throw new ConflictError("Participant has already been reviewed for this event");
     }
 
-    return ReviewRepository.createParticipantReview({
-      participant_id: participantId,
-      host_id: event.host_id,
+    return ReviewRepository.create({
+      type: "PARTICIPANT",
       event_id: eventId,
-      rating: validateRating(data.rating),
-      description: validateComment(data.comment, "comment"),
+      host_id: hostId,
+      participant_id: participantId,
+      rating: this.readRating(data.rating, "rating"),
+      description: this.normalizeComment(data.description ?? data.comment),
     });
   }
 
+  /**
+   * Get host's review of a participant
+   */
   static async getParticipantReview(
+    hostId: string,
     eventId: string,
-    participantId: string,
-    actor?: Actor
+    participantId: string
   ) {
-    const event = await ReviewRepository.findEventById(eventId);
-
-    if (!event) {
-      throw new NotFoundError("Event not found.");
-    }
-
-    if (
-      actor?.userId &&
-      !actor.isAdmin &&
-      actor.userId !== event.host_id &&
-      actor.userId !== participantId
-    ) {
-      throw new ForbiddenError("You cannot view this participant review.");
-    }
-
     const review = await ReviewRepository.findParticipantReview(
-      event.host_id,
+      hostId,
       participantId,
       eventId
     );
 
     if (!review) {
-      throw new NotFoundError("Participant review not found.");
+      throw new NotFoundError("Review not found");
     }
 
     return review;
+  }
+
+  /**
+   * Get a participant review visible to participant, host, or admin
+   */
+  static async getParticipantReviewForViewer(
+    viewerId: string,
+    eventId: string,
+    participantId: string
+  ) {
+    const event = await this.getEventOrThrow(eventId);
+    const viewer = await prisma.user.findUnique({ where: { id: viewerId } });
+
+    if (!viewer) {
+      throw new NotFoundError("User not found");
+    }
+
+    const canView =
+      viewerId === event.host_id || viewerId === participantId || viewer.role === "ADMIN";
+
+    if (!canView) {
+      throw new ForbiddenError("You cannot view this review");
+    }
+
+    return this.getParticipantReview(event.host_id, eventId, participantId);
+  }
+
+  private static async getEventOrThrow(eventId: string) {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundError("Event not found");
+    }
+
+    return event;
+  }
+
+  private static async getRegistrationOrThrow(userId: string, eventId: string) {
+    const registration = await prisma.eventParticipant.findUnique({
+      where: {
+        user_id_event_id: {
+          user_id: userId,
+          event_id: eventId,
+        },
+      },
+    });
+
+    if (!registration) {
+      throw new ForbiddenError("User is not registered for this event");
+    }
+
+    return registration;
+  }
+
+  private static readRating(value: number | undefined, field: string) {
+    if (!Number.isInteger(value) || value < 1 || value > 5) {
+      throw new ValidationError(`${field} must be an integer from 1 to 5`);
+    }
+
+    return value;
+  }
+
+  private static normalizeComment(comment?: string) {
+    if (comment === undefined || comment === null) {
+      return null;
+    }
+
+    const normalized = comment.trim();
+
+    if (normalized.length > 500) {
+      throw new ValidationError("Review comment must be 500 characters or fewer");
+    }
+
+    return normalized || null;
   }
 }

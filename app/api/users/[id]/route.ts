@@ -3,13 +3,18 @@
  * GET: Retrieve specific user's profile by ID
  */
 
+import { UserService } from "../../../../services/user.service";
+import { handleRouteError, json, toPublicUser } from "../route-utils";
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Handle GET request for specific user profile
-  return new Response(
-    JSON.stringify({ message: `GET /api/users/${params.id}` }),
-    { status: 200 }
-  );
+  try {
+    const user = await UserService.getUserProfile(params.id);
+
+    return json(toPublicUser(user));
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }
