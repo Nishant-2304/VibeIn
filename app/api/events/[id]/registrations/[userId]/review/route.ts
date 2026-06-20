@@ -15,7 +15,7 @@ import {
 } from "../../../../../users/route-utils";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string; userId: string } }
 ) {
   try {
