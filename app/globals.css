@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Jaro&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap');
+
+/* 2. Tailwind Engine */
+@import "tailwindcss";
+
+@theme {
+  /* Brand Palette */
+  --color-vibe-dark: #121212;
+  --color-vibe-purple: #9b72cf;
+  --color-vibe-card: #1e1e1e;
+  --color-vibe-light: #ffffff;
+
+  /* Event Card Theme Colors */
+  --color-card-purple: #9b72cf;
+  --color-card-blue: #68b0d8;
+  --color-card-orange: #f39c12;
+  --color-card-red: #e74c3c;
+  --color-card-pink: #e84393;
+
+  /* Typography */
+  --font-display: var(--font-jaro), sans-serif;
+  --font-sans: "Google Sans", sans-serif;
+}
+
+body {
+  background-color: var(--color-vibe-dark);
+  color: var(--color-vibe-light);
+  font-family: var(--font-sans);
+}
