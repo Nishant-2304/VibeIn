@@ -1,12 +1,9 @@
-/**
- * Root Layout
- * Main layout wrapper for the entire application
- * Includes global styles and shared components like Navbar and Footer
- */
+import "./globals.css";
+import { BottomNav } from "../components/layout/Navbar";
 
 export const metadata = {
-  title: "VibeIn - Event Management Platform",
-  description: "Connect, discover, and attend amazing events",
+  title: "UibeIn - Hostel Grapevine",
+  description: "Discover what's happening in your block.",
 };
 
 export default function RootLayout({
@@ -16,12 +13,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        {/* Global Navigation */}
-        {/* <Navbar /> */}
-        <main>{children}</main>
-        {/* Global Footer */}
-        {/* <Footer /> */}
+      <body className="bg-black min-h-screen text-white antialiased selection:bg-[#9b72cf] selection:text-black">
+        <div className="mx-auto max-w-md min-h-screen bg-[#121212] border-x border-white/10 relative pb-24 shadow-2xl flex flex-col">
+          {children}
+          <BottomNav />
+        </div>
       </body>
     </html>
   );
