@@ -4,17 +4,21 @@
  * Handles user profile, authentication, and user data
  */
 
-import type { Prisma } from "@prisma/client";
+import type { Prisma, College, Gender } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { verifyToken } from "../lib/auth";
 import { UserRepository } from "../repositories/user.repository";
 import { NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
+import { createClient } from "../lib/supabase/server";
 
 type UserProfileUpdate = {
   username?: string;
   email?: string;
   hostel?: string;
   floor?: number | string;
+  college?: College;
+  gender?: Gender;
+  pfp?: string;
 };
 
 export class UserService {
@@ -55,18 +59,23 @@ export class UserService {
    * Get current authenticated user
    */
   static async getCurrentUser(token: string) {
-    if (!token) {
-      throw new UnauthorizedError("Authentication token is required");
-    }
-
-    const result = verifyToken(token);
-
-    if (!result?.valid || !result.userId) {
-      throw new UnauthorizedError("Invalid authentication token");
-    }
-
-    return this.getUserProfile(result.userId);
+  if (!token) {
+    throw new UnauthorizedError("Authentication token is required");
   }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
+
+  if (error || !user) {
+    throw new UnauthorizedError("Invalid authentication token");
+  }
+
+  return this.getUserProfile(user.id);
+}
 
   /**
    * Get user's events (hosted and attended)
@@ -179,6 +188,18 @@ export class UserService {
       }
 
       updateData.floor = floor;
+    }
+
+    if (data.college !== undefined) {
+      updateData.college = data.college;
+    }
+
+    if (data.gender !== undefined) {
+      updateData.gender = data.gender;
+    }
+
+    if (data.pfp !== undefined) {
+      updateData.pfp = data.pfp;
     }
 
     return updateData;

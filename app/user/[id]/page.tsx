@@ -1,6 +1,7 @@
-// app/user/[id]/page.tsx
 "use client";
 
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
   AlertCircle, 
@@ -14,10 +15,62 @@ import {
   Star 
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function PublicProfilePage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+  
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/users/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data);
+        } else {
+          setError("User not found");
+        }
+      } catch (err) {
+        console.error("Error fetching public profile:", err);
+        setError("Error loading profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans">
+        <div className="w-8 h-8 border-2 border-[#9b72cf] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm">Loading Profile...</p>
+      </main>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans">
+        <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
+        <p className="text-sm">{error || "User profile not found."}</p>
+        <button 
+          type="button" 
+          onClick={() => router.back()} 
+          className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm transition"
+        >
+          Go Back
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center bg-[#121212] min-h-screen select-none font-sans overflow-x-hidden">
@@ -55,7 +108,7 @@ export default function PublicProfilePage() {
           
           {/* Mini User Avatar */}
           <div className="w-8 h-8 rounded-full bg-neutral-700 border border-white/20 flex items-center justify-center text-xs overflow-hidden">
-            🧑‍💻
+            {profile.pfp || "😎"}
           </div>
         </div>
       </div>
@@ -63,7 +116,7 @@ export default function PublicProfilePage() {
       {/* ================= HERO AVATAR & INFO ================= */}
       <div className="relative mb-3 z-10 mt-2">
         <div className="w-28 h-28 rounded-full bg-neutral-800 border-2 border-[#b594e6] overflow-hidden shadow-2xl flex items-center justify-center text-5xl">
-          🧑‍💻
+          {profile.pfp || "😎"}
         </div>
         {/* Verified Host Badge */}
         <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#9474cc] text-white flex items-center justify-center shadow-md border-2 border-[#121212]">
@@ -73,14 +126,14 @@ export default function PublicProfilePage() {
 
       <h1 
         style={{ fontFamily: "'Jaro', sans-serif" }} 
-        className="text-3xl font-black text-white tracking-wide z-10 mb-1 uppercase"
+        className="text-3xl font-black text-white tracking-wide z-10 mb-1 uppercase text-center"
       >
-        Alex Rivera
+        {profile.displayName || "Resident"}
       </h1>
 
       <div className="flex items-center gap-1.5 text-gray-400 text-xs font-medium z-10 mb-6">
         <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-        <span>Block A, 4th Floor</span>
+        <span>{profile.hostel || "Not Set"} Hostel • Floor {profile.floor ?? 0}</span>
       </div>
 
       {/* ================= RATINGS ROW ================= */}
@@ -92,11 +145,13 @@ export default function PublicProfilePage() {
               Host Rating
             </span>
             <div className="flex items-center gap-1 text-white font-black text-xl">
-              <span>4.9</span>
+              <span>{profile.hostRating ? profile.hostRating.toFixed(1) : "0.0"}</span>
               <Star className="w-4 h-4 fill-[#b594e6] text-[#b594e6]" />
             </div>
           </div>
-          <p className="text-gray-400 text-xs italic line-clamp-1">"Super chill host!"</p>
+          <p className="text-gray-400 text-xs italic line-clamp-1">
+            {profile.hostRating > 0 ? "Super chill host!" : "No reviews yet"}
+          </p>
         </div>
 
         {/* Guest Rating Card */}
@@ -106,11 +161,13 @@ export default function PublicProfilePage() {
               Guest Rating
             </span>
             <div className="flex items-center gap-1 text-white font-black text-xl">
-              <span>5.0</span>
+              <span>{profile.participantRating ? profile.participantRating.toFixed(1) : "0.0"}</span>
               <CheckCircle2 className="w-4 h-4 text-[#3d8ba8]" />
             </div>
           </div>
-          <p className="text-gray-400 text-xs font-medium line-clamp-1">Clean & respectful</p>
+          <p className="text-gray-400 text-xs font-medium line-clamp-1">
+            {profile.participantRating > 0 ? "Clean & respectful" : "No reviews yet"}
+          </p>
         </div>
       </div>
 
@@ -122,11 +179,11 @@ export default function PublicProfilePage() {
         
         <div className="flex-1 flex items-center justify-around divide-x divide-white/10 text-center">
           <div className="px-2">
-            <span className="font-display font-black text-xl text-white block">14</span>
+            <span className="font-display font-black text-xl text-white block">{profile.eventsHosted ?? 0}</span>
             <span className="text-[11px] font-medium text-gray-400">Events Hosted</span>
           </div>
           <div className="px-2 pl-4">
-            <span className="font-display font-black text-xl text-white block">86</span>
+            <span className="font-display font-black text-xl text-white block">{profile.eventsAttended ?? 0}</span>
             <span className="text-[11px] font-medium text-gray-400">Events Attended</span>
           </div>
         </div>
@@ -137,7 +194,7 @@ export default function PublicProfilePage() {
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 
             style={{ fontFamily: "'Jaro', sans-serif" }} 
-            className="text-lg font-black tracking-wide text-white tracking-wider"
+            className="text-lg font-black text-white tracking-wide"
           >
             Recent Activity
           </h2>

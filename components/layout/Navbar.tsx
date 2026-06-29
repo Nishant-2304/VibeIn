@@ -7,7 +7,7 @@ import { Home, Building2, Calendar, MessageSquare, User } from "lucide-react";
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/login" || (pathname.startsWith("/events/") && pathname !== "/events/create")) return null;
+  if (pathname === "/login" || pathname === "/onboarding" || (pathname.startsWith("/events/") && pathname !== "/events/create")) return null;
 
   const navItems = [
     { href: "/", icon: Home, label: "Home" },

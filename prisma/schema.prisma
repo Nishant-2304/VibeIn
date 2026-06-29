@@ -58,6 +58,15 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum College {
+  VIT_VELLORE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,8 +78,11 @@ model User {
   id         String    @id
   username   String    @unique
   email      String    @unique
-  hostel     String
-  floor      Int
+  gender     Gender?
+  pfp        String?
+  college    College?
+  hostel     String?
+  floor      Int?
   role       UserRole  @default(USER)
   banned_at  DateTime?
   ban_reason String?
