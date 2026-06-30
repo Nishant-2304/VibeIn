@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import MyEventCard, { MyEventCardProps } from "../../../components/event/MyEventCard";
 
 const SAMPLE_MY_EVENTS: MyEventCardProps[] = [
@@ -49,28 +49,32 @@ export default function MyEventsPage() {
   return (
     <main className="flex-1 relative bg-[#121212] min-h-screen px-5 pt-6 pb-32 flex flex-col select-none font-sans overflow-x-hidden">
       
-      {/* ================= TOP HEADER ================= */}
-      <div className="w-full flex items-center justify-between mb-6">
+      {/* ================= TOP HEADER (Streamlined UI) ================= */}
+      <div className="w-full flex items-center justify-between mb-6 z-10">
+        
+        {/* Left Side: Back Arrow + Brand Lockup */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-neutral-800 border border-white/10 text-white font-bold flex items-center justify-center text-lg shadow-md overflow-hidden">
-            <span className="text-2xl">🕵️‍♂️</span>
-          </div>
-          {/* Forcefully applied Jaro font via inline style */}
+          <button 
+            type="button"
+            onClick={() => router.push("/profile")} 
+            className="p-1 -ml-1 text-white hover:opacity-80 transition cursor-pointer flex items-center justify-center"
+            aria-label="Back to profile"
+          >
+            <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
+          </button>
+          
           <span 
             style={{ fontFamily: "'Jaro', sans-serif" }} 
-            className="text-2xl font-black tracking-wide text-white"
+            className="text-3xl font-black tracking-wide text-white pt-1"
           >
             VibeIn
           </span>
         </div>
 
-        <button 
-          type="button"
-          className="p-2.5 text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition active:scale-95 cursor-pointer"
-          aria-label="Notifications"
-        >
-          <Bell className="w-5 h-5 stroke-[2.5]" />
-        </button>
+        {/* Right Side: Profile Picture Placeholder */}
+        <div className="w-10 h-10 rounded-full bg-white text-black font-bold flex items-center justify-center text-lg shadow-md shrink-0">
+          😎
+        </div>
       </div>
 
       {/* ================= CONTROL TABS SECTION ================= */}

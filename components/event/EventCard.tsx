@@ -1,6 +1,5 @@
 // components/event/EventCard.tsx
 import Link from "next/link";
-import { Calendar, Users } from "lucide-react";
 
 export interface EventCardProps {
   id?: string;
@@ -21,52 +20,67 @@ export default function EventCard({
   time,
   bgColor,
 }: EventCardProps) {
+  // Maintained your rigid h-[210px] for horizontal carousel stability
   const cardClassName =
-    "w-full h-[210px] rounded-3xl p-5 flex flex-col justify-between shadow-lg transition-transform active:scale-[0.99] select-none text-[#1e1e1e]";
+    "w-full h-[210px] rounded-3xl p-5 flex flex-col justify-between shadow-lg transition-transform active:scale-[0.99] select-none text-white relative overflow-hidden";
 
   const cardStyle = { backgroundColor: bgColor };
 
   const inner = (
     <>
-      {/* Top Row: Host Info & Joined Badge */}
-      <div className="flex items-center justify-between mb-2 shrink-0">
-        <div className="flex items-center gap-2.5 font-medium text-sm">
-          <div className="w-8 h-8 rounded-full bg-black/10 border border-black/15 flex items-center justify-center font-bold text-xs shrink-0">
-            {host.charAt(0)}
-          </div>
-          <span className="font-semibold tracking-tight">{host}</span>
-        </div>
-
-        <div className="bg-black text-white text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 tracking-wide shadow-sm shrink-0">
-          <Users className="w-3.5 h-3.5" />
-          <span>{joinedCount} JOINED</span>
+      {/* ================= TOP RIGHT: The "Joined" Ribbon ================= */}
+      <div
+        className="absolute top-0 right-0 bg-white h-[50px] flex items-center justify-end pr-5 pl-10 rounded-tr-3xl z-10 shadow-sm"
+        style={{
+          // Flipped to slant top-left to bottom-right (\)
+          clipPath: "polygon(0% 0, 100% 0, 100% 100%, 30% 100%)",
+          color: bgColor, 
+        }}
+      >
+        <div className="flex items-baseline gap-1 mt-1">
+          <span className="font-display text-2xl font-black leading-none">
+            {joinedCount}
+          </span>
+          <span className="font-bold text-xs opacity-90 tracking-tighter">
+            JOINED
+          </span>
         </div>
       </div>
 
-      {/* Middle Row: Title & Description (flex-1 acts as a spring to absorb empty height) */}
-      <div className="flex-1 flex flex-col justify-start overflow-hidden my-1">
-        <h3 className="font-display text-xl font-bold mb-1 leading-snug tracking-tight truncate">
+      {/* ================= TOP LEFT: Title & Host ================= */}
+      <div className="flex flex-col z-10 pr-20 shrink-0 mt-1">
+        <h3 className="font-display text-2xl font-black leading-none tracking-wide truncate">
           {title}
         </h3>
-        <p className="text-black/75 text-xs font-medium leading-relaxed line-clamp-2">
+        <p className="text-sm font-medium text-white/90 mt-2 truncate">
+          Host: {host}
+        </p>
+      </div>
+
+      {/* ================= MIDDLE: Description ================= */}
+      <div className="flex-1 flex flex-col justify-center overflow-hidden my-2 z-10">
+        <p className="text-sm font-medium text-white/95 leading-relaxed line-clamp-2">
           {description}
         </p>
       </div>
 
-      {/* Bottom Stack: Divider + Timestamp & Join CTA */}
-      <div className="shrink-0 mt-auto">
-        <div className="w-full h-px bg-black/10 mb-3" />
+      {/* ================= BOTTOM: Divider, Time, & CTA ================= */}
+      <div className="shrink-0 mt-auto z-10">
+        {/* Short horizontal line matching the Figma reference */}
+        <div className="w-1/3 h-px bg-white/50 mb-3" />
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-bold text-black/80 truncate pr-2">
-            <Calendar className="w-4 h-4 shrink-0" />
-            <span className="truncate">{time}</span>
+          {/* Placed 'Time' here to replace the 'Inquire?' text, maintaining functionality */}
+          <div className="font-display text-xl tracking-wide text-white truncate pr-2 mt-1 drop-shadow-sm">
+            {time}
           </div>
 
           <button
             type="button"
-            onClick={(e) => e.stopPropagation()}
-            className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
+            onClick={(e) => {
+              if (id) e.stopPropagation();
+            }}
+            className="bg-[#121212] hover:bg-black text-white font-display text-lg tracking-wider px-7 py-1.5 rounded-xl shadow-xl active:scale-95 transition-all cursor-pointer shrink-0"
           >
             Join!
           </button>
@@ -80,7 +94,6 @@ export default function EventCard({
       <Link
         href={`/events/${id}`}
         style={cardStyle}
-        /* FIXED HEIGHT: Hardcoded h-[210px] ensures every card in a row is identical */
         className={`block ${cardClassName}`}
       >
         {inner}
@@ -89,11 +102,7 @@ export default function EventCard({
   }
 
   return (
-    <article
-      style={cardStyle}
-      /* FIXED HEIGHT: Hardcoded h-[210px] ensures every card in a row is identical */
-      className={cardClassName}
-    >
+    <article style={cardStyle} className={cardClassName}>
       {inner}
     </article>
   );
