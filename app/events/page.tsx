@@ -6,22 +6,40 @@ import { AlertCircle, Loader2, Plus, Search, SlidersHorizontal } from "lucide-re
 import EventCard, { EventCardProps } from "../../components/event/EventCard";
 import { eventApi, EventListItem, apiErrorMessage } from "../../lib/client-api";
 
-// Palette mirrors the original EventCard design (violet, pink, ochre, blue).
-// Mapping is stable per event id so the same event always shows the same color.
-const CARD_PALETTE = [
-  "#9474cc", // Muted Violet
-  "#d95284", // Vibrant Pink
-  "#c78d1a", // Ochre Yellow
-  "#3d8ba8", // Steel Blue
+// Card color tokens come from global.css (@theme). The order is deterministically
+// shuffled once at module load so it looks random but stays stable across renders
+// and reloads. Cards are then colored by their position in the section — NOT by
+// the event id or host id — so every card follows a pleasing repeating cycle.
+const CARD_COLOR_VARS = [
+  "var(--color-card-yellow)",
+  "var(--color-card-purple)",
+  "var(--color-card-blue)",
+  "var(--color-card-pink)",
 ];
 
-function hashStringToIndex(input: string, modulo: number) {
-  let hash = 0;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
-  }
-  return hash % modulo;
+// Tiny seeded PRNG (mulberry32). Same seed => same sequence on every run.
+function mulberry32(seed: number) {
+  let s = seed >>> 0;
+  return function next() {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
+
+function shuffledStableOrder(seed: number) {
+  const rng = mulberry32(seed);
+  const arr = [...CARD_COLOR_VARS];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const EVENTS_FEED_COLOR_ORDER = shuffledStableOrder(0x7e8f9a0b);
 
 function formatScheduledAt(iso: string) {
   const date = new Date(iso);
@@ -52,14 +70,17 @@ function formatScheduledAt(iso: string) {
   return `${weekday}, ${time}`;
 }
 
-function toCardProps(event: EventListItem): EventCardProps {
+function toCardProps(
+  event: EventListItem,
+  index: number
+): EventCardProps {
   return {
     title: event.name,
     host: event.host?.displayName ?? "Host",
     joinedCount: event.currentAttendees ?? 0,
     description: event.description ?? "",
     time: formatScheduledAt(event.scheduledAt),
-    bgColor: CARD_PALETTE[hashStringToIndex(event.id, CARD_PALETTE.length)],
+    bgColor: EVENTS_FEED_COLOR_ORDER[index % EVENTS_FEED_COLOR_ORDER.length],
   };
 }
 
@@ -159,7 +180,10 @@ export default function EventsFeedPage() {
     console.log("Trigger Make Event Flow");
   };
 
-  const cardEvents = useMemo(() => events.map(toCardProps), [events]);
+  const cardEvents = useMemo(
+    () => events.map((event, idx) => toCardProps(event, idx)),
+    [events]
+  );
 
   return (
     <main className="flex-1 relative bg-[#121212] min-h-screen px-5 pt-6 pb-28 flex flex-col select-none">

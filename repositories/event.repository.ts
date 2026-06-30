@@ -125,4 +125,36 @@ export class EventRepository {
       where: { id },
     });
   }
+
+  // Bulk-activates UPCOMING events whose start time has passed. The
+  // `event_status: UPCOMING` clause is a safety net so manually-set
+  // ACTIVE / COMPLETED / CANCELLED events are never overwritten, even if
+  // the caller passes an id list that includes them.
+  static async updateStatusToActiveForDueEvents(ids: string[]) {
+    if (ids.length === 0) return;
+
+    const now = new Date();
+    await prisma.event.updateMany({
+      where: {
+        id: { in: ids },
+        event_status: "UPCOMING",
+        event_time: { lte: now },
+      },
+      data: { event_status: "ACTIVE" },
+    });
+  }
+
+  // Single-event variant of the bulk transition above. Kept as a separate
+  // method so the per-id query path stays explicit.
+  static async updateStatusToActiveForDueEvent(id: string) {
+    const now = new Date();
+    await prisma.event.updateMany({
+      where: {
+        id,
+        event_status: "UPCOMING",
+        event_time: { lte: now },
+      },
+      data: { event_status: "ACTIVE" },
+    });
+  }
 }

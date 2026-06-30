@@ -227,6 +227,7 @@ export const eventApi = {
       true
     );
   },
+  
 };
 
 export function apiErrorMessage(error: unknown) {

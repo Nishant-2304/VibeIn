@@ -12,11 +12,10 @@
   --color-vibe-light: #ffffff;
 
   /* Event Card Theme Colors */
-  --color-card-purple: #9b72cf;
-  --color-card-blue: #68b0d8;
-  --color-card-orange: #f39c12;
-  --color-card-red: #e74c3c;
-  --color-card-pink: #e84393;
+  --color-card-purple: #9474cc;
+  --color-card-blue: #3d8ba8;
+  --color-card-yellow: #c78d1a;
+  --color-card-pink: #d95284;
 
   /* Typography */
   --font-display: var(--font-jaro), sans-serif;

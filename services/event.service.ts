@@ -127,6 +127,18 @@ export class EventService {
 
     const [events, total] = await EventRepository.findAll(where, pagination);
 
+    // Lazily transition any UPCOMING events whose start time has passed to
+    // ACTIVE. Done in a single bulk update for efficiency; manual status
+    // changes (ACTIVE, COMPLETED, CANCELLED) are preserved by the filter.
+    const activatedIds = await this.activateDueEvents(events);
+    if (activatedIds.size > 0) {
+      for (const event of events) {
+        if (activatedIds.has(event.id)) {
+          event.event_status = EventStatus.ACTIVE;
+        }
+      }
+    }
+
     return { events, total };
   }
 
@@ -137,7 +149,39 @@ export class EventService {
       throw new NotFoundError("Event not found.");
     }
 
+    // Lazy transition: if the start time has passed and the host hasn't
+    // manually moved it past UPCOMING, treat it as ACTIVE.
+    if (
+      event.event_status === EventStatus.UPCOMING &&
+      event.event_time <= new Date()
+    ) {
+      await EventRepository.updateStatusToActiveForDueEvent(id);
+      event.event_status = EventStatus.ACTIVE;
+    }
+
     return event;
+  }
+
+  // Bulk-activates any UPCOMING events in the provided list whose start time
+  // has passed. Single updateMany statement; does not touch events with
+  // manual status (ACTIVE, COMPLETED, CANCELLED). Returns the set of ids
+  // that were actually transitioned so the caller can patch the in-memory
+  // result without re-scanning the list.
+  private static async activateDueEvents(
+    events: { id: string; event_status: EventStatus; event_time: Date }[]
+  ): Promise<Set<string>> {
+    const now = new Date();
+    const dueIds = events
+      .filter(
+        (event) =>
+          event.event_status === EventStatus.UPCOMING && event.event_time <= now
+      )
+      .map((event) => event.id);
+
+    if (dueIds.length === 0) return new Set();
+
+    await EventRepository.updateStatusToActiveForDueEvents(dueIds);
+    return new Set(dueIds);
   }
 
   static async createEvent(data: any, actor?: Actor) {
