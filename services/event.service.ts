@@ -25,6 +25,27 @@ type Actor = {
   isAdmin?: boolean;
 };
 
+const allowedHostels = new Set([
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "J",
+  "K",
+  "L",
+  "M",
+  "N",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T",
+]);
+
 const editableLocationFields = ["name", "hostel", "floor", "roomNumber"];
 
 function isEventStatus(value: unknown): value is EventStatus {
@@ -60,6 +81,20 @@ function parseDate(value: unknown, fieldName: string) {
   }
 
   return date;
+}
+
+function parseHostel(value: unknown, fieldName = "hostel") {
+  if (typeof value !== "string") {
+    throw new ValidationError(`${fieldName} is required.`);
+  }
+
+  const hostel = value.trim().toUpperCase();
+
+  if (!allowedHostels.has(hostel)) {
+    throw new ValidationError(`${fieldName} must be one of A-T, excluding I and O.`);
+  }
+
+  return hostel;
 }
 
 function activeAttendeeCount(event: { participants?: { attendance_status: string }[] }) {
@@ -141,7 +176,7 @@ export class EventService {
   }
 
   static async createEvent(data: any, actor?: Actor) {
-    const hostId = actor?.userId ?? data.hostId;
+    const hostId = actor?.userId;
 
     if (!hostId || typeof hostId !== "string") {
       throw new UnauthorizedError("Host user is required.");
@@ -159,9 +194,7 @@ export class EventService {
       throw new ValidationError("description must be a string.");
     }
 
-    if (typeof data.hostel !== "string" || data.hostel.trim().length === 0) {
-      throw new ValidationError("hostel is required.");
-    }
+    const hostel = parseHostel(data.hostel);
 
     const floor = parseInteger(data.floor, "floor");
 
@@ -196,7 +229,7 @@ export class EventService {
     return EventRepository.create({
       eventname: data.name.trim(),
       event_description: data.description?.trim() ?? "",
-      hostel_name: data.hostel.trim(),
+      hostel_name: hostel,
       floor,
       room_no: data.roomNumber.trim(),
       host_id: hostId,
@@ -260,11 +293,7 @@ export class EventService {
     }
 
     if (data.hostel !== undefined) {
-      if (typeof data.hostel !== "string" || data.hostel.trim().length === 0) {
-        throw new ValidationError("hostel must be a non-empty string.");
-      }
-
-      updateData.hostel_name = data.hostel.trim();
+      updateData.hostel_name = parseHostel(data.hostel);
     }
 
     if (data.floor !== undefined) {

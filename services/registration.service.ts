@@ -59,7 +59,10 @@ export class RegistrationService {
       throw new AppError("ALREADY_REGISTERED", 409, "User is already registered for this event.");
     }
 
-    if (![EventStatus.UPCOMING, EventStatus.ACTIVE].includes(event.event_status)) {
+    if (
+      event.event_status !== EventStatus.UPCOMING &&
+      event.event_status !== EventStatus.ACTIVE
+    ) {
       throw new BusinessRuleError("REGISTRATION_CLOSED", "Registration is closed for this event.");
     }
 
@@ -98,7 +101,10 @@ export class RegistrationService {
       throw new NotFoundError("Registration not found.");
     }
 
-    if ([EventStatus.COMPLETED, EventStatus.CANCELLED].includes(event.event_status)) {
+    if (
+      event.event_status === EventStatus.COMPLETED ||
+      event.event_status === EventStatus.CANCELLED
+    ) {
       throw new BusinessRuleError("REGISTRATION_CLOSED", "Registration cannot be cancelled for this event.");
     }
 
@@ -157,11 +163,17 @@ export class RegistrationService {
 
     assertActorIsHostOrAdmin(event, actor);
 
-    if (![AttendanceStatus.ATTENDED, AttendanceStatus.NO_SHOW].includes(status as AttendanceStatus)) {
+    if (
+      status !== AttendanceStatus.ATTENDED &&
+      status !== AttendanceStatus.NO_SHOW
+    ) {
       throw new ValidationError("attendanceStatus must be ATTENDED or NO_SHOW.");
     }
 
-    if (![EventStatus.ACTIVE, EventStatus.COMPLETED].includes(event.event_status)) {
+    if (
+      event.event_status !== EventStatus.ACTIVE &&
+      event.event_status !== EventStatus.COMPLETED
+    ) {
       throw new BusinessRuleError(
         "ATTENDANCE_NOT_ALLOWED",
         "Event must be ACTIVE or COMPLETED to mark attendance."

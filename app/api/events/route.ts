@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   const actor = {
-    userId: request.headers.get("x-user-id") ?? body.hostId,
+    userId: request.headers.get("x-user-id"),
   };
 
   try {

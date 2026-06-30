@@ -61,6 +61,7 @@ export type CreateEventInput = {
   floor: number;
   roomNumber: string;
   scheduledAt: string;
+  durationMinutes: number;
   maxAttendees: number;
 };
 
