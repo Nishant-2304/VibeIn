@@ -1,5 +1,4 @@
 import {
-  errorResponse,
   formatAdminEventList,
   handleRouteError,
   jsonResponse,
@@ -7,18 +6,15 @@ import {
   parsePagination,
 } from "../../../../lib/admin-api";
 import { AdminService } from "../../../../services/admin.service";
+import { requireAdmin } from "../../../../lib/auth";
 
 export async function GET(request: Request) {
-  // TODO(oauth): enable once Supabase/OAuth auth is wired.
-  // const auth = await requireAdmin(request);
-  // if (!auth.isAdmin) {
-  //   return errorResponse("FORBIDDEN", "Admin access required.", 403);
-  // }
-
-  const { searchParams } = new URL(request.url);
-  const { page, limit, skip } = parsePagination(searchParams);
-
   try {
+    await requireAdmin(request);
+
+    const { searchParams } = new URL(request.url);
+    const { page, limit, skip } = parsePagination(searchParams);
+
     const { events, reportCounts, total } = await AdminService.getAllEvents(
       {
         status: searchParams.get("status"),

@@ -1,45 +1,64 @@
 /**
- * Authentication Utility
- * Handles JWT token creation and verification
- * Manages user authentication logic
+ * Authentication helpers
+ *
+ * VibeIn uses Supabase Auth (Google OAuth) as the only authentication provider.
+ * API routes should authenticate requests exclusively through:
+ *
+ *   - requireAuth(request)
+ *   - requireAdmin(request)
+ *
+ * These helpers:
+ * 1. Read the Bearer token from the Authorization header.
+ * 2. Validate it through Supabase.
+ * 3. Load the corresponding Prisma user.
+ * 4. Return the authenticated user.
  */
 
+import { UserService } from "../services/user.service";
+import { UnauthorizedError } from "../utils/errors";
+
 /**
- * Create JWT token
+ * Extract the Bearer token from the Authorization header.
  */
-export function createToken(userId: string, expiresIn: string = "7d") {
-  // Implementation will create JWT token
-  return "token";
+export function getBearerToken(request: Request): string | null {
+  const authHeader = request.headers.get("authorization");
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  return authHeader.slice("Bearer ".length).trim();
 }
 
 /**
- * Verify JWT token
+ * Authenticate the request and return the current Prisma user.
+ *
+ * Throws UnauthorizedError if:
+ * - the Authorization header is missing
+ * - the bearer token is invalid
+ * - no matching Prisma user exists
  */
-export function verifyToken(token: string) {
-  // Implementation will verify JWT token
-  return { valid: true, userId: "" };
+export async function requireAuth(request: Request) {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    throw new UnauthorizedError("Authentication required.");
+  }
+
+  return await UserService.getCurrentUser(token);
 }
 
 /**
- * Decode JWT token
+ * Authenticate the request and ensure the user is an admin.
+ *
+ * Throws:
+ * - UnauthorizedError if authentication fails.
+ * - ForbiddenError if the authenticated user is not an admin.
  */
-export function decodeToken(token: string) {
-  // Implementation will decode JWT token
-  return { userId: "", email: "" };
-}
+export async function requireAdmin(request: Request) {
+  const user = await requireAuth(request);
 
-/**
- * Hash password
- */
-export async function hashPassword(password: string) {
-  // Implementation will hash password
-  return "hashed_password";
-}
+  UserService.assertAdmin(user);
 
-/**
- * Compare password
- */
-export async function comparePassword(password: string, hash: string) {
-  // Implementation will compare password with hash
-  return true;
+  return user;
 }

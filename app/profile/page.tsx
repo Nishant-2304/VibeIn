@@ -17,6 +17,22 @@ import {
 import Link from "next/link";
 
 export default function ProfilePage() {
+    useEffect(() => {
+    async function getToken() {
+      const supabase = createClient();
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log("ACCESS TOKEN:");
+      console.log(session?.access_token);
+    }
+
+    getToken();
+  }, []);
+
+
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();

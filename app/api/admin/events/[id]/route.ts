@@ -1,22 +1,17 @@
 import {
-  errorResponse,
   formatAdminEventDetail,
   handleRouteError,
   jsonResponse,
 } from "../../../../../lib/admin-api";
 import { AdminService } from "../../../../../services/admin.service";
+import { requireAdmin } from "../../../../../lib/auth";
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // TODO(oauth): enable once Supabase/OAuth auth is wired.
-  // const auth = await requireAdmin(request);
-  // if (!auth.isAdmin) {
-  //   return errorResponse("FORBIDDEN", "Admin access required.", 403);
-  // }
-
   try {
+    await requireAdmin(request);
     const { event, reports } = await AdminService.getEventDetail(params.id);
 
     return jsonResponse(formatAdminEventDetail(event, reports));
@@ -29,13 +24,8 @@ export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // TODO(oauth): enable once Supabase/OAuth auth is wired.
-  // const auth = await requireAdmin(request);
-  // if (!auth.isAdmin) {
-  //   return errorResponse("FORBIDDEN", "Admin access required.", 403);
-  // }
-
   try {
+    await requireAdmin(request);
     return jsonResponse(await AdminService.deleteEvent(params.id));
   } catch (error) {
     return handleRouteError(error);

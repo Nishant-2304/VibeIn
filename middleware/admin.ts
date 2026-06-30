@@ -1,27 +1,49 @@
 /**
  * Admin Middleware
- * Verifies user has admin privileges
- * Checks admin role and permissions
+ *
+ * Verifies that the bearer token belongs to a Supabase-authenticated user
+ * whose Prisma record has `role === "ADMIN"`. Backed by `UserService` so it
+ * uses the same auth flow as the rest of the app.
  */
 
-export async function adminMiddleware(userId: string) {
-  // Implementation will verify admin status
-  // Checks if user has admin role
-  return { isAdmin: true };
+import { UserService } from "../services/user.service";
+import { UnauthorizedError, ForbiddenError } from "../utils/errors";
+
+async function loadUser(userId: string) {
+  return UserService.getUserProfile(userId);
 }
 
 /**
- * Check if user is admin
+ * Verify admin status for an already-authenticated user id.
+ */
+export async function adminMiddleware(userId: string) {
+  if (!userId) {
+    throw new UnauthorizedError("Authentication required.");
+  }
+
+  const user = await loadUser(userId);
+
+  if (user.role !== "ADMIN") {
+    throw new ForbiddenError("Admin access required.");
+  }
+
+  return { isAdmin: true, userId, user };
+}
+
+/**
+ * Check if user is admin (used by routes that already have the user id).
  */
 export async function isAdmin(userId: string) {
-  // Implementation will check admin role
-  return { isAdmin: true };
+  const user = await loadUser(userId);
+
+  return { isAdmin: user.role === "ADMIN", user };
 }
 
 /**
- * Check admin permissions
+ * Check admin permissions — admin role grants all management actions.
  */
-export async function checkAdminPermission(userId: string, action: string) {
-  // Implementation will check admin permissions
-  return { allowed: true };
+export async function checkAdminPermission(userId: string, _action: string) {
+  const user = await loadUser(userId);
+
+  return { allowed: user.role === "ADMIN", user };
 }

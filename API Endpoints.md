@@ -39,7 +39,7 @@ Authorization: Bearer <supabase_jwt>
 
 ## Events
 
-### `GET /api/events`
+### `GET /api/events` - done
 Discover and list events.
 
 **Auth:** `public`
@@ -87,7 +87,7 @@ Discover and list events.
 
 ---
 
-### `POST /api/events`
+### `POST /api/events` - done
 Create a new event.
 
 **Auth:** `auth`
@@ -124,7 +124,7 @@ Create a new event.
 
 ---
 
-### `GET /api/events/:id`
+### `GET /api/events/:id` - done
 Get full event details.
 
 **Auth:** `public` (partial) / `auth` (full)
@@ -163,7 +163,7 @@ For authenticated users — `roomNumber` is included:
 
 ---
 
-### `PATCH /api/events/:id`
+### `PATCH /api/events/:id` - done
 Edit an existing event.
 
 **Auth:** `host`
@@ -187,7 +187,7 @@ Edit an existing event.
 
 ---
 
-### `PATCH /api/events/:id/status`
+### `PATCH /api/events/:id/status` - done
 Transition event status.
 
 **Auth:** `host` or `admin`
@@ -214,7 +214,7 @@ Transition event status.
 
 ## Registrations
 
-### `POST /api/events/:id/registrations`
+### `POST /api/events/:id/registrations` - done
 Register the authenticated user for an event.
 
 **Auth:** `auth`
@@ -246,7 +246,7 @@ Register the authenticated user for an event.
 
 ---
 
-### `DELETE /api/events/:id/registrations/me`
+### `DELETE /api/events/:id/registrations/me` - done
 Cancel own registration.
 
 **Auth:** `auth`
@@ -265,7 +265,7 @@ Cancel own registration.
 
 ---
 
-### `GET /api/events/:id/registrations`
+### `GET /api/events/:id/registrations` - done
 List all registrations for an event.
 
 **Auth:** `host` or `admin`
@@ -290,7 +290,7 @@ List all registrations for an event.
 
 ---
 
-### `PATCH /api/events/:id/registrations/:userId`
+### `PATCH /api/events/:id/registrations/:userId` - done
 Update a participant's attendance status.
 
 **Auth:** `host`
@@ -314,7 +314,7 @@ Update a participant's attendance status.
 
 ## Reviews
 
-### `POST /api/events/:id/reviews`
+### `POST /api/events/:id/reviews` - done
 Participant submits an event review and a host review (submitted together, stored as separate records).
 
 **Auth:** `auth`
@@ -355,7 +355,7 @@ Comments are optional (max 500 chars).
 
 ---
 
-### `GET /api/events/:id/reviews`
+### `GET /api/events/:id/reviews` - done
 List all participant reviews for an event.
 
 **Auth:** `public`
@@ -381,7 +381,7 @@ List all participant reviews for an event.
 
 ---
 
-### `POST /api/events/:id/registrations/:userId/review`
+### `POST /api/events/:id/registrations/:userId/review` - done
 Host submits a review of a specific participant.
 
 **Auth:** `host`
@@ -405,7 +405,7 @@ Host submits a review of a specific participant.
 
 ---
 
-### `GET /api/events/:id/registrations/:userId/review`
+### `GET /api/events/:id/registrations/:userId/review` - done
 Get the host's review of a specific participant for this event.
 
 **Auth:** `auth` (visible to the participant themselves, the host, and admins)
@@ -416,7 +416,7 @@ Get the host's review of a specific participant for this event.
 
 ## Users
 
-### `GET /api/users/me`
+### `GET /api/users/me` - done
 Get the authenticated user's own full profile.
 
 **Auth:** `auth`
@@ -441,7 +441,7 @@ Get the authenticated user's own full profile.
 
 ---
 
-### `PATCH /api/users/me`
+### `PATCH /api/users/me` - done
 Update own profile.
 
 **Auth:** `auth`
@@ -449,7 +449,7 @@ Update own profile.
 **Request body** (all optional):
 ```json
 {
-  "displayName": "Nish",
+  "username": "Nish",
   "hostel": "B Block",
   "floor": 2
 }
@@ -459,7 +459,7 @@ Update own profile.
 
 ---
 
-### `GET /api/users/:id`
+### `GET /api/users/:id` - done
 Get a public user profile.
 
 **Auth:** `public`
@@ -482,7 +482,7 @@ Get a public user profile.
 
 ---
 
-### `GET /api/users/me/events`
+### `GET /api/users/me/events` - done
 Get the authenticated user's event history (both hosted and attending).
 
 **Auth:** `auth`
@@ -508,7 +508,7 @@ Get the authenticated user's event history (both hosted and attending).
 
 ---
 
-### `GET /api/users/:id/events`
+### `GET /api/users/:id/events` - done
 Get a user's public event history (attended events only, completed).
 
 **Auth:** `public`
@@ -517,9 +517,9 @@ Get a user's public event history (attended events only, completed).
 
 ---
 
-## Reports
+## Reports - apparently not set up yet
 
-### `POST /api/reports`
+### `POST /api/reports` - done
 Submit a report against an event or user.
 
 **Auth:** `auth`

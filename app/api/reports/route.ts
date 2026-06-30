@@ -1,19 +1,50 @@
 /**
  * Reports API Route Handler
- * GET: Retrieve list of user's submitted reports
- * POST: Create a new report for inappropriate content/user
+ * GET: Retrieve current user's submitted reports
+ * POST: Submit a new report
  */
 
+import { requireAuth } from "../../../lib/auth";
+import { ReportService } from "../../../services/report.service";
+import {
+  handleRouteError,
+  json,
+} from "../users/route-utils";
+
 export async function GET(request: Request) {
-  // Handle GET request for reports
-  return new Response(JSON.stringify({ message: "GET /api/reports" }), {
-    status: 200,
-  });
+  try {
+    const currentUser = await requireAuth(request);
+
+    const reports = await ReportService.getUserReports(
+      currentUser.id
+    );
+
+    return json(reports);
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }
 
 export async function POST(request: Request) {
-  // Handle POST request to create new report
-  return new Response(JSON.stringify({ message: "POST /api/reports" }), {
-    status: 201,
-  });
+  try {
+    const currentUser = await requireAuth(request);
+
+    const body = await request.json();
+
+    const report = await ReportService.createReport(
+      currentUser.id,
+      body
+    );
+
+    return json(
+      {
+        id: report.id,
+        status: report.status,
+        createdAt: report.createdAt,
+      },
+      201
+    );
+  } catch (error) {
+    return handleRouteError(error);
+  }
 }

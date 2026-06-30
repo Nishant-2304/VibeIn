@@ -1,13 +1,10 @@
 /**
- * Supabase Utility
- * Initializes and exports Supabase client
- * Handles authentication, database, and real-time updates
+ * Supabase barrel
+ *
+ * Server- and client-side helpers for Supabase Auth live under
+ * `./supabase/server` and `./supabase/client`. This module re-exports the
+ * server helper so existing call sites that imported `supabase` from
+ * `@/lib/supabase` continue to work without modification.
  */
 
-// This will be the Supabase client instance
-// In a real implementation, you would import from @supabase/supabase-js
-export const supabase = {
-  // Supabase client initialization
-};
-
-export default supabase;
+export { createClient } from "./supabase/server";

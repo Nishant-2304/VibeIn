@@ -4,11 +4,10 @@
  * Handles user profile, authentication, and user data
  */
 
-import type { Prisma, College, Gender } from "@prisma/client";
+import type { Prisma, College, Gender, UserRole } from "@prisma/client";
 import prisma from "../lib/prisma";
-import { verifyToken } from "../lib/auth";
 import { UserRepository } from "../repositories/user.repository";
-import { NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
+import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
 import { createClient } from "../lib/supabase/server";
 
 type UserProfileUpdate = {
@@ -76,6 +75,17 @@ export class UserService {
 
   return this.getUserProfile(user.id);
 }
+
+  /**
+   * Assert the supplied role is ADMIN. Throws ForbiddenError otherwise.
+   * The role is read from the Prisma User record (not the JWT) so that the
+   * source of truth remains the database.
+   */
+  static assertAdmin(user: { role: UserRole | string }) {
+    if (user.role !== "ADMIN") {
+      throw new ForbiddenError("Admin access required.");
+    }
+  }
 
   /**
    * Get user's events (hosted and attended)

@@ -8,6 +8,7 @@ import {
   parsePagination,
 } from "../../../lib/event-api";
 import { EventService } from "../../../services/event.service";
+import { requireAuth } from "../../../lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -34,24 +35,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  // TODO(oauth): enable once Supabase/OAuth auth is wired.
-  // const auth = await requireAuth(request);
-  // if (!auth.userId) {
-  //   return errorResponse("UNAUTHORIZED", "Authentication required.", 401);
-  // }
-  // const actor = { userId: auth.userId };
-
-  const body = await request.json().catch(() => null);
-
-  if (!body || typeof body !== "object") {
-    return errorResponse("VALIDATION_ERROR", "Request body must be JSON.", 400);
-  }
-
-  const actor = {
-    userId: request.headers.get("x-user-id") ?? body.hostId,
-  };
-
   try {
+    const currentUser = await requireAuth(request);
+    const body = await request.json().catch(() => null);
+
+    if (!body || typeof body !== "object") {
+      return errorResponse("VALIDATION_ERROR", "Request body must be JSON.", 400);
+    }
+
+    const actor = { userId: currentUser.id };
+
     const event = await EventService.createEvent(body, actor);
 
     return jsonResponse(formatEventMutation(event), 201);
