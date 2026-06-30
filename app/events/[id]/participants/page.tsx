@@ -228,12 +228,12 @@ export default function EventParticipantsPage({
                 className="rounded-[24px] border border-white/10 bg-[#242326] p-4"
               >
 
-                <div className="flex items-center justify-between">
+                <Link
+                  href={`/user/${registration.user.id}`}
+                  className="flex items-center justify-between"
+                >
 
-                  <Link
-                    href={`/profile/${registration.user.id}`}
-                    className="flex items-center gap-3"
-                  >
+                  <div className="flex items-center gap-3">
 
                     <div className="flex h-13 w-13 items-center justify-center rounded-full border border-white/10 bg-[#171717] text-2xl">
   {registration.user.pfp?.trim()
@@ -260,7 +260,7 @@ export default function EventParticipantsPage({
 
                     </div>
 
-                  </Link>
+                  </div>
                                     <div>
 
                     {registration.attendanceStatus === "REGISTERED" && (
@@ -289,7 +289,7 @@ export default function EventParticipantsPage({
 
                   </div>
 
-                </div>
+                </Link>
 
                 {pending && (
                   <div className="mt-5 grid grid-cols-2 gap-3">
@@ -297,12 +297,14 @@ export default function EventParticipantsPage({
                     <button
                       type="button"
                       disabled={updatingUserId === registration.user.id}
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
                         void markAttendance(
                           registration.user.id,
                           "ATTENDED"
-                        )
-                      }
+                        );
+                      }}
                       className="flex items-center justify-center gap-2 rounded-2xl bg-green-600 py-3 font-medium transition hover:bg-green-500 disabled:opacity-50"
                     >
                       <Check className="h-5 w-5" />
@@ -312,12 +314,14 @@ export default function EventParticipantsPage({
                     <button
                       type="button"
                       disabled={updatingUserId === registration.user.id}
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
                         void markAttendance(
                           registration.user.id,
                           "NO_SHOW"
-                        )
-                      }
+                        );
+                      }}
                       className="flex items-center justify-center gap-2 rounded-2xl bg-red-600 py-3 font-medium transition hover:bg-red-500 disabled:opacity-50"
                     >
                       <X className="h-5 w-5" />
