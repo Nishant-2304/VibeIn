@@ -258,6 +258,39 @@ export const eventApi = {
   },
 };
 
+// Raw shape returned by GET /api/users/me/events. The `hosting` and
+// `attending` arrays contain the same Prisma Event row, with `attending`
+// also including `attendanceStatus` and `registeredAt` from the join row.
+export type MyEventItem = {
+  id: string;
+  eventname: string;
+  event_description: string;
+  hostel_name: string;
+  floor: number;
+  event_time: string;
+  event_status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+  max_attendees: number;
+  host: { id: string; username: string };
+  _count?: { participants?: number };
+  attendanceStatus?: string;
+};
+
+export type MyEventsResponse = {
+  hosting?: MyEventItem[];
+  attending?: MyEventItem[];
+};
+
+export const userApi = {
+  getMyEvents(query: { role?: "hosting" | "attending"; status?: string } = {}) {
+    const params = new URLSearchParams();
+    if (query.role) params.set("role", query.role);
+    if (query.status) params.set("status", query.status);
+    const qs = params.toString();
+    const path = qs ? `/api/users/me/events?${qs}` : "/api/users/me/events";
+    return apiRequest<MyEventsResponse>(path, {}, true);
+  },
+};
+
 export function apiErrorMessage(error: unknown) {
   return error instanceof ApiError
     ? error.message

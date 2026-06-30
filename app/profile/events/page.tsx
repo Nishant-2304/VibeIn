@@ -1,44 +1,97 @@
 // app/profile/events/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Plus } from "lucide-react";
-import MyEventCard, { MyEventCardProps } from "../../../components/event/MyEventCard";
+import { AlertCircle, Bell, Loader2, Plus } from "lucide-react";
+import EventCard, { EventCardProps } from "../../../components/event/EventCard";
+import {
+  apiErrorMessage,
+  MyEventItem,
+  userApi,
+} from "../../../lib/client-api";
 
-const SAMPLE_MY_EVENTS: MyEventCardProps[] = [
-  {
-    title: "Block 4 Rooftop Jam",
-    time: "21:00 Today",
-    joinedCount: "12/20 Joined",
-    roleBadge: "HOST",
-    actionText: "Manage",
-    bgColor: "#9474cc", // Muted Violet
-    extraCount: 10,
-  },
-  {
-    title: "Ping Pong Tournament",
-    time: "18:00 Sat",
-    joinedCount: "8/8 Full",
-    roleBadge: "HOST",
-    actionText: "Broadcast",
-    bgColor: "#d95284", // Vibrant Pink
-    extraCount: 6,
-  },
-  {
-    title: "Midnight Maggi Run",
-    time: "23:30 Tomorrow",
-    joinedCount: "15/15 Full",
-    roleBadge: "HOST",
-    actionText: "Manage",
-    bgColor: "#c78d1a", // Ochre Yellow
-    extraCount: 13,
-  },
+type Tab = "HOSTED" | "ATTENDED";
+type SubFilter = "UPCOMING" | "ACTIVE" | "COMPLETED";
+
+const CARD_COLOR_VARS = [
+  "var(--color-card-yellow)",
+  "var(--color-card-purple)",
+  "var(--color-card-blue)",
+  "var(--color-card-pink)",
 ];
 
+function mulberry32(seed: number) {
+  let s = seed >>> 0;
+  return function next() {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffledStableOrder(seed: number) {
+  const rng = mulberry32(seed);
+  const arr = [...CARD_COLOR_VARS];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const MY_EVENTS_COLOR_ORDER = shuffledStableOrder(0xc1d2e3f4);
+
+function formatScheduledAt(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow =
+    date.getFullYear() === tomorrow.getFullYear() &&
+    date.getMonth() === tomorrow.getMonth() &&
+    date.getDate() === tomorrow.getDate();
+
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  if (sameDay) return `Tonight, ${time}`;
+  if (isTomorrow) return `Tomorrow, ${time}`;
+
+  const weekday = date.toLocaleDateString(undefined, { weekday: "short" });
+  return `${weekday}, ${time}`;
+}
+
+function toCardProps(event: MyEventItem, index: number): EventCardProps {
+  return {
+    id: event.id,
+    title: event.eventname,
+    host: event.host?.username ?? "Host",
+    joinedCount: event._count?.participants ?? 0,
+    description: event.event_description ?? "",
+    time: formatScheduledAt(event.event_time),
+    bgColor: MY_EVENTS_COLOR_ORDER[index % MY_EVENTS_COLOR_ORDER.length],
+  };
+}
+
 export default function MyEventsPage() {
-  const [activeTab, setActiveTab] = useState<"HOSTED" | "ATTENDED">("HOSTED");
-  const [subFilter, setSubFilter] = useState<"UPCOMING" | "ACTIVE" | "COMPLETED">("UPCOMING");
+  const [activeTab, setActiveTab] = useState<Tab>("HOSTED");
+  const [subFilter, setSubFilter] = useState<SubFilter>("UPCOMING");
+
+  const [hosting, setHosting] = useState<MyEventItem[]>([]);
+  const [attending, setAttending] = useState<MyEventItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -46,9 +99,46 @@ export default function MyEventsPage() {
     router.push("/events/create");
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    userApi
+      .getMyEvents()
+      .then((response) => {
+        if (cancelled) return;
+        setHosting(response.hosting ?? []);
+        setAttending(response.attending ?? []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(apiErrorMessage(err));
+        setHosting([]);
+        setAttending([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const source = activeTab === "HOSTED" ? hosting : attending;
+    return source.filter((event) => event.event_status === subFilter);
+  }, [activeTab, hosting, attending, subFilter]);
+
+  const cards = useMemo(
+    () => filtered.map((event, idx) => toCardProps(event, idx)),
+    [filtered]
+  );
+
   return (
     <main className="flex-1 relative bg-[#121212] min-h-screen px-5 pt-6 pb-32 flex flex-col select-none font-sans overflow-x-hidden">
-      
+
       {/* ================= TOP HEADER ================= */}
       <div className="w-full flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -56,15 +146,15 @@ export default function MyEventsPage() {
             <span className="text-2xl">🕵️‍♂️</span>
           </div>
           {/* Forcefully applied Jaro font via inline style */}
-          <span 
-            style={{ fontFamily: "'Jaro', sans-serif" }} 
+          <span
+            style={{ fontFamily: "'Jaro', sans-serif" }}
             className="text-2xl font-black tracking-wide text-white"
           >
             VibeIn
           </span>
         </div>
 
-        <button 
+        <button
           type="button"
           className="p-2.5 text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition active:scale-95 cursor-pointer"
           aria-label="Notifications"
@@ -127,14 +217,33 @@ export default function MyEventsPage() {
 
       {/* ================= CARDS FEED ================= */}
       <div className="flex flex-col gap-4">
-        {activeTab === "HOSTED" ? (
-          SAMPLE_MY_EVENTS.map((evt, idx) => (
-            <MyEventCard key={idx} {...evt} />
-          ))
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="w-6 h-6 text-[#9b72cf] animate-spin" />
+            <p className="text-gray-400 text-sm font-medium">Loading your events...</p>
+          </div>
+        ) : error && hosting.length === 0 && attending.length === 0 ? (
+          <div
+            role="alert"
+            className="flex flex-col items-center justify-center py-12 gap-3 text-center"
+          >
+            <AlertCircle className="w-7 h-7 text-red-400" />
+            <p className="text-red-300 text-sm font-semibold">
+              We couldn&apos;t load your events.
+            </p>
+            <p className="text-gray-400 text-xs font-medium max-w-xs">
+              {error}
+            </p>
+          </div>
+        ) : cards.length > 0 ? (
+          cards.map((evt) => <EventCard key={evt.id} {...evt} />)
         ) : (
-          /* Empty state placeholder for when user clicks "Attended" */
           <div className="text-center py-16 bg-[#1e1e1e]/50 rounded-3xl border border-white/5 mt-2">
-            <p className="text-gray-400 font-medium text-sm">No attended events in this tab yet.</p>
+            <p className="text-gray-400 font-medium text-sm">
+              {activeTab === "HOSTED"
+                ? "You haven't hosted any events in this tab yet."
+                : "You haven't registered for any events in this tab yet."}
+            </p>
           </div>
         )}
       </div>
