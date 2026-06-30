@@ -207,6 +207,14 @@ export const eventApi = {
     );
   },
 
+  update(id: string, input: Partial<CreateEventInput>) {
+    return apiRequest<CreatedEvent>(
+      `/api/events/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(input) },
+      true
+    );
+  },
+
   register(id: string) {
     return apiRequest<{ id: string; attendanceStatus: string }>(
       `/api/events/${encodeURIComponent(id)}/registrations`,
@@ -280,7 +288,18 @@ export type MyEventsResponse = {
   attending?: MyEventItem[];
 };
 
+export type CurrentUser = {
+  id: string;
+  displayName?: string;
+  username?: string;
+  email?: string;
+};
+
 export const userApi = {
+  getMe() {
+    return apiRequest<CurrentUser>("/api/users/me", {}, true);
+  },
+
   getMyEvents(query: { role?: "hosting" | "attending"; status?: string } = {}) {
     const params = new URLSearchParams();
     if (query.role) params.set("role", query.role);

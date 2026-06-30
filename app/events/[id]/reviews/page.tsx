@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Send, Star } from "lucide-react";
 import {
@@ -41,6 +42,7 @@ function Rating({
 }
 
 export default function SubmitEventReviewPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [eventRating, setEventRating] = useState(0);
   const [eventComment, setEventComment] = useState("");
@@ -49,19 +51,34 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   useEffect(() => {
     let active = true;
     eventApi
       .get(params.id)
-      .then((data) => active && setEvent(data))
+      .then((data) => {
+        if (!active) return;
+        setEvent(data);
+        // Prevent duplicate submissions in the UI: if the loaded event
+        // already has the current user's review attached, skip the form
+        // and bounce straight back to the event page.
+        if (data.reviews && data.reviews.length > 0) {
+          setAlreadySubmitted(true);
+        }
+      })
       .catch((cause) => active && setError(apiErrorMessage(cause)))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    if (!loading && alreadySubmitted) {
+      router.replace(`/events/${params.id}`);
+    }
+  }, [loading, alreadySubmitted, params.id, router]);
 
   async function submit() {
     setError(null);
@@ -78,7 +95,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
         hostRating,
         hostComment: hostComment.trim() || undefined,
       });
-      setSubmitted(true);
+      router.replace(`/events/${params.id}`);
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {
@@ -100,12 +117,9 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
           <p className="mt-8 text-[#9ca3af]">Loading event…</p>
         ) : !event ? (
           <p className="mt-8 text-red-300">{error || "Event not found."}</p>
-        ) : submitted ? (
-          <section className="mt-8 rounded-[28px] bg-[#131313] p-6">
-            <h2 className="text-xl font-bold">Review submitted</h2>
-            <p className="mt-2 text-[#9ca3af]">Your event and host ratings were saved together.</p>
-            <Link href={`/events/${params.id}`} className="mt-6 inline-block text-[#b792ea]">Back to event</Link>
-          </section>
+        ) : alreadySubmitted ? (
+          // Brief intermediate state while the redirect runs.
+          <p className="mt-8 text-[#9ca3af]">You’ve already reviewed this event. Redirecting…</p>
         ) : (
           <>
             <section className="mt-6 rounded-[28px] border border-white/10 bg-[#131313] p-4">

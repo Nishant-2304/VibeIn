@@ -1,7 +1,10 @@
-// components/event/MyEventCard.tsx
+"use client";
+
+import { useRouter } from "next/navigation";
 import { Clock, Users, MoreVertical } from "lucide-react";
 
 export interface MyEventCardProps {
+  id: string;
   title: string;
   time: string;
   joinedCount: string; // e.g. "12/20 Joined" or "8/8 Full"
@@ -13,28 +16,33 @@ export interface MyEventCardProps {
 }
 
 export default function MyEventCard({
+  id,
   title,
   time,
   joinedCount,
   roleBadge,
   actionText,
   bgColor,
-  avatars = ["/avatar1.png", "/avatar2.png"], // fallbacks
+  avatars = ["/avatar1.png", "/avatar2.png"],
   extraCount = 10,
 }: MyEventCardProps) {
+  const router = useRouter();
+
   return (
     <article
+      onClick={() => router.push(`/events/${id}`)}
       style={{ backgroundColor: bgColor }}
-      className="w-full rounded-3xl p-5 flex flex-col justify-between shadow-lg text-[#1e1e1e] select-none relative overflow-hidden transition-transform active:scale-[0.99]"
+      className="w-full cursor-pointer rounded-3xl p-5 flex flex-col justify-between shadow-lg text-[#1e1e1e] select-none relative overflow-hidden transition-transform active:scale-[0.99]"
     >
-      {/* Top Row: Role Badge & Three-Dot Menu */}
+      {/* Top Row */}
       <div className="flex items-center justify-between mb-3">
         <span className="bg-black/20 text-black font-black text-[10px] px-3 py-1 rounded-full tracking-wider uppercase">
           {roleBadge}
         </span>
 
-        <button 
+        <button
           type="button"
+          onClick={(e) => e.stopPropagation()}
           className="p-1 text-black/70 hover:text-black transition rounded-full hover:bg-black/10 active:scale-95 cursor-pointer"
           aria-label="Event options"
         >
@@ -42,7 +50,7 @@ export default function MyEventCard({
         </button>
       </div>
 
-      {/* Middle: Title & Meta Stats */}
+      {/* Title + Stats */}
       <div className="mb-5">
         <h3 className="font-display text-2xl font-black mb-2 leading-tight tracking-wide text-black">
           {title}
@@ -64,17 +72,17 @@ export default function MyEventCard({
       {/* Divider */}
       <div className="w-full h-px bg-black/15 mb-4" />
 
-      {/* Bottom Row: Stacked Avatars & Action CTA */}
+      {/* Bottom */}
       <div className="flex items-center justify-between">
-        
-        {/* Overlapping Avatar Stack */}
         <div className="flex items-center -space-x-2 overflow-hidden pl-1">
           <div className="inline-block w-8 h-8 rounded-full ring-2 ring-black/10 bg-neutral-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
             🧑‍🎤
           </div>
+
           <div className="inline-block w-8 h-8 rounded-full ring-2 ring-black/10 bg-neutral-700 text-white flex items-center justify-center text-xs font-bold shrink-0">
             👩‍🚀
           </div>
+
           {extraCount > 0 && (
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-black/80 text-white text-[10px] font-black ring-2 ring-black/10 shrink-0">
               +{extraCount}
@@ -82,9 +90,9 @@ export default function MyEventCard({
           )}
         </div>
 
-        {/* Action Button (Manage / Broadcast) */}
         <button
           type="button"
+          onClick={(e) => e.stopPropagation()}
           className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-6 py-2.5 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {actionText}

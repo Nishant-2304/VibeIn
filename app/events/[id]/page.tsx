@@ -5,11 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Calendar, MapPin, Star, Zap, ArrowRight } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Pencil, Star, Zap, ArrowRight } from "lucide-react";
 import {
   apiErrorMessage,
   eventApi,
   type EventDetail,
+  userApi,
 } from "../../../lib/client-api";
 
 export default function EventDetailPage({ params }: { params: { id: string } }) {
@@ -19,6 +20,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [isHost, setIsHost] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -27,7 +29,16 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
     eventApi
       .get(params.id)
-      .then((data) => active && setEvent(data))
+      .then((data) => {
+        if (!active) return;
+        setEvent(data);
+        // Resolve host ownership lazily. If the user isn't logged in or the
+        // request fails we simply won't show the edit pencil.
+        userApi
+          .getMe()
+          .then((me) => active && setIsHost(me?.id === data.host.id))
+          .catch(() => active && setIsHost(false));
+      })
       .catch((cause) => active && setError(apiErrorMessage(cause)))
       .finally(() => active && setLoading(false));
 
@@ -127,6 +138,17 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           >
             <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
           </button>
+
+          {/* Floating Edit Button (host only) */}
+          {isHost && (
+            <Link
+              href={`/events/${encodeURIComponent(event.id)}/edit`}
+              className="absolute top-6 right-5 z-20 p-2.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-black/60 transition-all cursor-pointer shadow-lg active:scale-95"
+              aria-label="Edit event"
+            >
+              <Pencil className="w-5 h-5 stroke-[2.5]" />
+            </Link>
+          )}
           
           <div className="absolute bottom-4 right-4 rounded-full bg-black/60 backdrop-blur-md border border-white/10 px-4 py-1.5 text-[#c8aaf5] font-bold text-sm shadow-lg">
             {event.currentAttendees} / {event.maxAttendees} Going

@@ -230,32 +230,6 @@ export default function HomePage() {
       </div>
 
       {/* ================= CONDITIONAL ALERT BANNER ================= */}
-      {pendingCount > 0 && (
-        <div className="w-full bg-[#c8aaf5] rounded-2xl p-3 px-4 flex items-center justify-between mb-8 shadow-md transition-all animate-fade-in">
-          <div className="flex items-center gap-2.5 text-[#2c124d] font-bold text-xs sm:text-sm overflow-hidden">
-            <div className="w-5 h-5 rounded-full bg-[#2c124d] text-white flex items-center justify-center font-black text-[11px] shrink-0">
-              !
-            </div>
-            <span className="truncate">{pendingCount} events need attendance marked</span>
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0 ml-2">
-            <ChevronRight className="w-4 h-4 text-[#2c124d] stroke-[3]" />
-            {/* Dismiss Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPendingCount(0); // Hides banner permanently for session
-              }}
-              className="p-1 hover:bg-black/10 rounded-full transition text-[#2c124d]"
-              aria-label="Dismiss alert"
-            >
-              <X className="w-4 h-4 stroke-[3]" />
-            </button>
-          </div>
-        </div>
-      )}
 
 {/* ================= SECTION 1: HAPPENING NOW (Centered Peeking Carousel) ================= */}
       <div className="mb-8">
