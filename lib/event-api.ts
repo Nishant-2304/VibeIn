@@ -148,6 +148,7 @@ export function formatRegistrationListItem(registration: any) {
     user: {
       id: registration.user.id,
       displayName: registration.user.username,
+      pfp: registration.user.pfp,
       participantRating: calculateAverageRating(
         registration.user.participantReviewsReceived?.map(
           (review: any) => review.rating

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, Plus } from "lucide-react";
 import MyEventCard, { MyEventCardProps } from "../../../components/event/MyEventCard";
 
@@ -39,8 +40,10 @@ export default function MyEventsPage() {
   const [activeTab, setActiveTab] = useState<"HOSTED" | "ATTENDED">("HOSTED");
   const [subFilter, setSubFilter] = useState<"UPCOMING" | "ACTIVE" | "COMPLETED">("UPCOMING");
 
+  const router = useRouter();
+
   const handleMakeEvent = () => {
-    console.log("Trigger Make Event Flow");
+    router.push("/events/create");
   };
 
   return (

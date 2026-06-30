@@ -1,7 +1,9 @@
 // components/event/EventCard.tsx
+import Link from "next/link";
 import { Calendar, Users } from "lucide-react";
 
 export interface EventCardProps {
+  id?: string;
   title: string;
   host: string;
   joinedCount: number;
@@ -11,6 +13,7 @@ export interface EventCardProps {
 }
 
 export default function EventCard({
+  id,
   title,
   host,
   joinedCount,
@@ -18,12 +21,13 @@ export default function EventCard({
   time,
   bgColor,
 }: EventCardProps) {
-  return (
-    <article
-      style={{ backgroundColor: bgColor }}
-      /* FIXED HEIGHT: Hardcoded h-[210px] ensures every card in a row is identical */
-      className="w-full h-[210px] rounded-3xl p-5 flex flex-col justify-between shadow-lg transition-transform active:scale-[0.99] select-none text-[#1e1e1e]"
-    >
+  const cardClassName =
+    "w-full h-[210px] rounded-3xl p-5 flex flex-col justify-between shadow-lg transition-transform active:scale-[0.99] select-none text-[#1e1e1e]";
+
+  const cardStyle = { backgroundColor: bgColor };
+
+  const inner = (
+    <>
       {/* Top Row: Host Info & Joined Badge */}
       <div className="flex items-center justify-between mb-2 shrink-0">
         <div className="flex items-center gap-2.5 font-medium text-sm">
@@ -61,12 +65,36 @@ export default function EventCard({
 
           <button
             type="button"
+            onClick={(e) => e.stopPropagation()}
             className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
           >
             Join!
           </button>
         </div>
       </div>
+    </>
+  );
+
+  if (id) {
+    return (
+      <Link
+        href={`/events/${id}`}
+        style={cardStyle}
+        /* FIXED HEIGHT: Hardcoded h-[210px] ensures every card in a row is identical */
+        className={`block ${cardClassName}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <article
+      style={cardStyle}
+      /* FIXED HEIGHT: Hardcoded h-[210px] ensures every card in a row is identical */
+      className={cardClassName}
+    >
+      {inner}
     </article>
   );
 }

@@ -1,3 +1,5 @@
+import { createClient } from "./supabase/client";
+
 export type ApiErrorBody = {
   error?: string;
   message?: string;
@@ -49,8 +51,13 @@ export type Registration = {
     id: string;
     displayName: string;
     participantRating: number;
+    pfp?: string;
   };
-  attendanceStatus: "REGISTERED" | "ATTENDED" | "NO_SHOW" | "CANCELLED";
+  attendanceStatus:
+  | "REGISTERED"
+  | "ATTENDED"
+  | "NO_SHOW"
+  | "CANCELLED";
   registeredAt: string;
 };
 
@@ -62,6 +69,7 @@ export type CreateEventInput = {
   roomNumber: string;
   scheduledAt: string;
   maxAttendees: number;
+  durationMinutes?: number;
 };
 
 export type CreatedEvent = CreateEventInput & {
@@ -69,6 +77,7 @@ export type CreatedEvent = CreateEventInput & {
   hostId: string;
   status: EventDetail["status"];
   currentAttendees: number;
+  durationMinutes: number;
 };
 
 export type SubmitEventReviewInput = {
@@ -83,12 +92,18 @@ export type SubmitParticipantReviewInput = {
   comment?: string;
 };
 
-function accessToken() {
-  if (typeof window === "undefined") return null;
+async function accessToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-  // Auth integration has one deliberate seam: store the Supabase JWT here,
-  // or replace this function with the project's session provider.
-  return window.localStorage.getItem("vibein.accessToken");
+  const supabase = createClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token ?? null;
 }
 
 async function apiRequest<T>(
@@ -97,7 +112,7 @@ async function apiRequest<T>(
   authenticated = false
 ): Promise<T> {
   const headers = new Headers(init.headers);
-  const token = authenticated ? accessToken() : null;
+  const token = authenticated ? await accessToken() : null;
 
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -227,7 +242,20 @@ export const eventApi = {
       true
     );
   },
-  
+  updateAttendance(
+    eventId: string,
+    userId: string,
+    attendanceStatus: "ATTENDED" | "NO_SHOW"
+  ) {
+    return apiRequest<Registration>(
+      `/api/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(userId)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ attendanceStatus }),
+      },
+      true
+    );
+  },
 };
 
 export function apiErrorMessage(error: unknown) {

@@ -40,6 +40,7 @@ export class RegistrationRepository {
             id: true,
             username: true,
             email: true,
+            pfp: true,
             participantReviewsReceived: {
               select: { rating: true },
             },
@@ -57,6 +58,7 @@ export class RegistrationRepository {
           select: {
             id: true,
             username: true,
+            pfp: true,
             participantReviewsReceived: {
               select: { rating: true },
             },
@@ -83,6 +85,7 @@ export class RegistrationRepository {
             id: true,
             username: true,
             email: true,
+            pfp: true,
             participantReviewsReceived: {
               select: { rating: true },
             },

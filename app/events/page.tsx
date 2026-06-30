@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../../components/event/EventCard";
 import { eventApi, EventListItem, apiErrorMessage } from "../../lib/client-api";
 
@@ -75,6 +76,7 @@ function toCardProps(
   index: number
 ): EventCardProps {
   return {
+    id: event.id,
     title: event.name,
     host: event.host?.displayName ?? "Host",
     joinedCount: event.currentAttendees ?? 0,
@@ -176,8 +178,10 @@ export default function EventsFeedPage() {
       .finally(() => setIsLoadingMore(false));
   };
 
+  const router = useRouter();
+
   const handleMakeEvent = () => {
-    console.log("Trigger Make Event Flow");
+    router.push("/events/create");
   };
 
   const cardEvents = useMemo(

@@ -14,6 +14,7 @@ type FormState = {
   roomNumber: string;
   scheduledAt: string;
   maxAttendees: string;
+  durationMinutes: string;
 };
 
 const initialForm: FormState = {
@@ -24,6 +25,7 @@ const initialForm: FormState = {
   roomNumber: "",
   scheduledAt: "",
   maxAttendees: "8",
+  durationMinutes: "120",
 };
 
 export default function CreateEventPage() {
@@ -42,12 +44,24 @@ export default function CreateEventPage() {
 
     const floor = Number(form.floor);
     const maxAttendees = Number(form.maxAttendees);
+    const durationMinutes = Number(form.durationMinutes);
     if (form.name.trim().length < 3 || form.name.trim().length > 100) {
       setError("Event name must be between 3 and 100 characters.");
       return;
     }
-    if (!Number.isInteger(floor) || !Number.isInteger(maxAttendees) || maxAttendees < 2) {
-      setError("Enter a valid floor and at least 2 attendees.");
+    if (!Number.isInteger(floor) || floor < 0) {
+      setError("Enter a valid floor number.");
+      return;
+    }
+    if (!Number.isInteger(maxAttendees) || maxAttendees < 2) {
+      setError("Maximum attendees must be at least 2.");
+      return;
+    }
+    if (
+      !Number.isInteger(durationMinutes) ||
+      durationMinutes < 1
+    ) {
+      setError("Duration must be a positive whole number of minutes.");
       return;
     }
     const scheduledAt = new Date(form.scheduledAt);
@@ -66,6 +80,7 @@ export default function CreateEventPage() {
         roomNumber: form.roomNumber.trim(),
         scheduledAt: scheduledAt.toISOString(),
         maxAttendees,
+        durationMinutes,
       });
       router.push(`/events/${created.id}`);
     } catch (cause) {
@@ -96,7 +111,7 @@ export default function CreateEventPage() {
             <input required value={form.hostel} onChange={(e) => update("hostel", e.target.value)} className={fieldClass} />
           </label>
           <div className="grid grid-cols-2 gap-3">
-            <label>Floor<input required type="number" value={form.floor} onChange={(e) => update("floor", e.target.value)} className={fieldClass} /></label>
+            <label>Floor<input required type="number" min={0} value={form.floor} onChange={(e) => update("floor", e.target.value)} className={fieldClass} /></label>
             <label>Room number<input required value={form.roomNumber} onChange={(e) => update("roomNumber", e.target.value)} className={fieldClass} /></label>
           </div>
           <label className="block">Date and time
@@ -104,6 +119,9 @@ export default function CreateEventPage() {
           </label>
           <label className="block">Maximum attendees
             <input required type="number" min={2} value={form.maxAttendees} onChange={(e) => update("maxAttendees", e.target.value)} className={fieldClass} />
+          </label>
+          <label className="block">Duration (minutes)
+            <input required type="number" min={1} step={1} value={form.durationMinutes} onChange={(e) => update("durationMinutes", e.target.value)} className={fieldClass} />
           </label>
 
           {error && <p role="alert" className="text-sm text-red-300">{error}</p>}

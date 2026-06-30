@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AlertCircle, Bell, ChevronRight, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";
 import { eventApi, EventListItem, apiErrorMessage } from "../lib/client-api";
 
@@ -76,6 +77,7 @@ function toCardProps(
   index: number
 ): EventCardProps {
   return {
+    id: event.id,
     title: event.name,
     host: event.host?.displayName ?? "Host",
     joinedCount: event.currentAttendees ?? 0,
@@ -198,8 +200,10 @@ export default function HomePage() {
       .map((e, i) => toCardProps(e, COMING_UP_COLOR_ORDER, start + i));
   }, [comingUp, currentPage]);
 
+  const router = useRouter();
+
   const handleMakeEvent = () => {
-    console.log("Trigger Make Event Flow");
+    router.push("/events/create");
   };
 
   return (
