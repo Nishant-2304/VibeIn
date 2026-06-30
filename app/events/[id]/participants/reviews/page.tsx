@@ -12,6 +12,8 @@ import {
 
 type Draft = { rating: number; comment: string };
 
+const participantReviewColors = ["#A381D6", "#E85DA1", "#CA8200", "#007EA1"];
+
 export default function SubmitParticipantReviewsPage({ params }: { params: { id: string } }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -89,11 +91,17 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
         )}
 
         <section className="mt-8 space-y-5">
-          {registrations.map((registration) => {
+          {registrations.map((registration, index) => {
             const draft = drafts[registration.user.id] || { rating: 0, comment: "" };
             const done = submitted[registration.user.id];
+            const cardColor = participantReviewColors[index % participantReviewColors.length];
+            const starColor = participantReviewColors[(index + 1) % participantReviewColors.length];
             return (
-              <article key={registration.id} className="rounded-[24px] border border-white/10 bg-[#242326] p-4">
+              <article
+                key={registration.id}
+                className="rounded-[24px] border border-white/10 p-4"
+                style={{ backgroundColor: cardColor }}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">{registration.user.displayName}</h2>
@@ -105,7 +113,10 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
                 <div className="mt-4 flex gap-2">
                   {[1, 2, 3, 4, 5].map((rating) => (
                     <button key={rating} type="button" disabled={done} onClick={() => changeDraft(registration.user.id, { rating })} aria-label={`Rate ${registration.user.displayName} ${rating} stars`}>
-                      <Star className={`h-7 w-7 ${rating <= draft.rating ? "fill-[#c9b0ff] text-[#c9b0ff]" : "text-white/20"}`} />
+                      <Star
+                        className={`h-7 w-7 ${rating <= draft.rating ? "fill-current" : "text-white/25"}`}
+                        style={rating <= draft.rating ? { color: starColor } : undefined}
+                      />
                     </button>
                   ))}
                 </div>
