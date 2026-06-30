@@ -211,26 +211,22 @@ export default function HomePage() {
 
       {/* ================= TOP HEADER ================= */}
       <div className="w-full flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white text-black font-bold flex items-center justify-center text-lg shadow-md">
+        
+        {/* Left Side: Clean Branding */}
+        <span 
+          style={{ fontFamily: "'Jaro', sans-serif" }} 
+          className="text-3xl font-black tracking-wide text-white pt-1"
+        >
+          VibeIn
+        </span>
+
+        {/* Right Side: Profile Avatar (Clickable) */}
+        <Link href="/profile" className="shrink-0">
+          <div className="w-10 h-10 rounded-full bg-white text-black font-bold flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer">
             😎
           </div>
-          {/* Forcefully applied Jaro font via inline style */}
-          <span
-            style={{ fontFamily: "'Jaro', sans-serif" }}
-            className="text-2xl font-black tracking-wide text-white"
-          >
-            VibeIn
-          </span>
-        </div>
-
-        <button
-          type="button"
-          className="p-2 text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition active:scale-95 cursor-pointer"
-          aria-label="Notifications"
-        >
-          <Bell className="w-5 h-5 stroke-[2.5]" />
-        </button>
+        </Link>
+        
       </div>
 
       {/* ================= CONDITIONAL ALERT BANNER ================= */}
