@@ -124,7 +124,57 @@ async function apiRequest<T>(
   return (await response.json()) as T;
 }
 
+export type EventListItem = {
+  id: string;
+  name: string;
+  description: string;
+  hostel: string;
+  floor: number;
+  scheduledAt: string;
+  status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+  maxAttendees: number;
+  currentAttendees: number;
+  host: {
+    id: string;
+    displayName: string;
+    hostRating: number;
+  };
+};
+
+export type EventListResponse = {
+  events: EventListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+};
+
+export type EventListQuery = {
+  q?: string;
+  hostel?: string;
+  floor?: number;
+  status?: "UPCOMING" | "ACTIVE" | "COMPLETED";
+  page?: number;
+  limit?: number;
+};
+
 export const eventApi = {
+  list(query: EventListQuery = {}) {
+    const params = new URLSearchParams();
+    if (query.q) params.set("q", query.q);
+    if (query.hostel) params.set("hostel", query.hostel);
+    if (typeof query.floor === "number") params.set("floor", String(query.floor));
+    if (query.status) params.set("status", query.status);
+    if (query.page) params.set("page", String(query.page));
+    if (query.limit) params.set("limit", String(query.limit));
+
+    const qs = params.toString();
+    const path = qs ? `/api/events?${qs}` : "/api/events";
+    return apiRequest<EventListResponse>(path, {}, false);
+  },
+
   get(id: string) {
     // Authentication is optional here, but supplying it reveals roomNumber.
     return apiRequest<EventDetail>(
