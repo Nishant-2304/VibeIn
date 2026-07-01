@@ -55,6 +55,7 @@ function formatPublicHost(host: any) {
   return {
     id: host.id,
     displayName: host.username,
+    pfp: host.pfp,
     hostRating: calculateAverageRating(hostRatings),
     eventsHosted: host._count?.hostedEvents,
   };

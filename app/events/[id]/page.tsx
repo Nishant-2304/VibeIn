@@ -187,7 +187,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
 
           {/* ================= HOSTED BY ================= */}
           <Link
-            href={`/user/${encodeURIComponent(event.host.displayName.toLowerCase().replace(/\s+/g, '-'))}`}
+            href={`/user/${encodeURIComponent(event.host.id)}`}
             className="mt-8 block w-full rounded-3xl p-5 shadow-lg transition-transform active:scale-[0.99] select-none text-white relative overflow-hidden"
             style={{ backgroundColor: hostBgColor }}
           >
@@ -213,8 +213,10 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 Hosted by
               </span>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-black/20 border border-white/20 flex items-center justify-center font-display text-xl text-white shadow-inner shrink-0">
-                  {event.host.displayName.charAt(0)}
+                <div className="w-10 h-10 rounded-full bg-black/20 border border-white/20 flex items-center justify-center text-xl shadow-inner shrink-0">
+                  {event.host.pfp?.trim()
+                    ? event.host.pfp
+                    : event.host.displayName.charAt(0)}
                 </div>
                 <h3 className="font-display text-2xl font-black leading-none tracking-wide truncate pr-16">
                   {event.host.displayName}

@@ -10,6 +10,11 @@ export interface MyEventCardProps {
   joinedCount: string; // e.g. "12/20 Joined" or "8/8 Full"
   roleBadge: "HOST" | "ATTENDING";
   actionText: "Manage" | "Broadcast" | "View Details";
+  /**
+   * Optional override for the action button's destination. When omitted, the
+   * card itself is the only click target (→ /events/[id]).
+   */
+  actionHref?: string;
   bgColor: string;
   avatars?: string[];
   extraCount?: number;
@@ -22,11 +27,20 @@ export default function MyEventCard({
   joinedCount,
   roleBadge,
   actionText,
+  actionHref,
   bgColor,
   avatars = ["/avatar1.png", "/avatar2.png"],
   extraCount = 10,
 }: MyEventCardProps) {
   const router = useRouter();
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    // The card itself is clickable, so always block the bubbling navigation.
+    e.stopPropagation();
+    if (actionHref) {
+      router.push(actionHref);
+    }
+  };
 
   return (
     <article
@@ -92,7 +106,7 @@ export default function MyEventCard({
 
         <button
           type="button"
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleActionClick}
           className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-6 py-2.5 rounded-2xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
         >
           {actionText}

@@ -6,7 +6,7 @@ import { AlertCircle, Bell, ChevronRight, Loader2, Plus, X } from "lucide-react"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";
-import { eventApi, EventListItem, apiErrorMessage } from "../lib/client-api";
+import { eventApi, userApi, EventListItem, apiErrorMessage } from "../lib/client-api";
 
 // Card color tokens come from global.css (@theme). Different sections can use
 // different "random-looking" but stable orders. The seed is fixed per section
@@ -96,6 +96,9 @@ export default function HomePage() {
   // Pagination State (for "Coming up")
   const [currentPage, setCurrentPage] = useState(0);
 
+  // Current user pfp for top-right avatar
+  const [myPfp, setMyPfp] = useState<string | null>(null);
+
   // Section data state
   const [happeningNow, setHappeningNow] = useState<EventListItem[]>([]);
   const [happeningNowLoading, setHappeningNowLoading] = useState(true);
@@ -165,6 +168,23 @@ export default function HomePage() {
     }
   }, [comingUp, currentPage]);
 
+  // Fetch the current user once so the top-right avatar reflects their emoji.
+  useEffect(() => {
+    let cancelled = false;
+    userApi
+      .getMe()
+      .then((me) => {
+        if (cancelled) return;
+        setMyPfp(me?.pfp ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setMyPfp(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // 1. Autoplay Carousel Logic (Scrolls every 3.5s unless touched)
   useEffect(() => {
     if (isPaused || !carouselRef.current) return;
@@ -223,7 +243,7 @@ export default function HomePage() {
         {/* Right Side: Profile Avatar (Clickable) */}
         <Link href="/profile" className="shrink-0">
           <div className="w-10 h-10 rounded-full bg-white text-black font-bold flex items-center justify-center text-lg shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer">
-            😎
+            {myPfp?.trim() ? myPfp : "😎"}
           </div>
         </Link>
         

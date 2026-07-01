@@ -39,6 +39,7 @@ export type EventDetail = {
   host: {
     id: string;
     displayName: string;
+    pfp?: string;
     hostRating: number;
     eventsHosted?: number;
   };
@@ -293,6 +294,7 @@ export type CurrentUser = {
   displayName?: string;
   username?: string;
   email?: string;
+  pfp?: string;
 };
 
 export const userApi = {
@@ -307,6 +309,19 @@ export const userApi = {
     const qs = params.toString();
     const path = qs ? `/api/users/me/events?${qs}` : "/api/users/me/events";
     return apiRequest<MyEventsResponse>(path, {}, true);
+  },
+
+  getUserEvents(
+    id: string,
+    query: { role?: "hosting" | "attending"; status?: string } = {}
+  ) {
+    const params = new URLSearchParams();
+    if (query.role) params.set("role", query.role);
+    if (query.status) params.set("status", query.status);
+    const qs = params.toString();
+    const base = `/api/users/${encodeURIComponent(id)}/events`;
+    const path = qs ? `${base}?${qs}` : base;
+    return apiRequest<MyEventsResponse>(path, {}, false);
   },
 };
 

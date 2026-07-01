@@ -95,6 +95,11 @@ function toCardProps(
     joinedCount: `${event._count?.participants ?? 0} Joined`,
     roleBadge: hosted ? "HOST" : "ATTENDING",
     actionText: hosted ? "Manage" : "View Details",
+    // Host → manage participants; attendee → view event details. The card
+    // body itself still navigates to the event detail page on a generic tap.
+    actionHref: hosted
+      ? `/events/${encodeURIComponent(event.id)}/participants`
+      : `/events/${encodeURIComponent(event.id)}`,
     bgColor:
       MY_EVENTS_COLOR_ORDER[index % MY_EVENTS_COLOR_ORDER.length],
   };
@@ -108,6 +113,7 @@ export default function MyEventsPage() {
   const [attending, setAttending] = useState<MyEventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [myPfp, setMyPfp] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -137,6 +143,22 @@ export default function MyEventsPage() {
         if (!cancelled) setLoading(false);
       });
 
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    userApi
+      .getMe()
+      .then((me) => {
+        if (cancelled) return;
+        setMyPfp(me?.pfp ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setMyPfp(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -182,7 +204,7 @@ export default function MyEventsPage() {
 
         {/* Right Side: Profile Picture Placeholder */}
         <div className="w-10 h-10 rounded-full bg-white text-black font-bold flex items-center justify-center text-lg shadow-md shrink-0">
-          😎
+          {myPfp?.trim() ? myPfp : "😎"}
         </div>
       </div>
 
