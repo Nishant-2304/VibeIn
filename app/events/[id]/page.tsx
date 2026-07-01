@@ -1,3 +1,4 @@
+// app/events/[id]/page.tsx
 "use client";
 
 import Image from "next/image";
@@ -30,6 +31,9 @@ export default function EventDetailPage({
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isRegistered, setIsRegistered] = useState(false);
+  
+  // NEW: Track exact attendance status to ensure attendees can review
+  const [attendanceStatus, setAttendanceStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -42,7 +46,6 @@ export default function EventDetailPage({
     async function loadData() {
       try {
         const eventData = await eventApi.get(params.id);
-        console.log("EVENT DATA:", eventData);
         if (!active) return;
 
         setEvent(eventData);
@@ -65,14 +68,19 @@ export default function EventDetailPage({
                 );
 
               if (active) {
+                // Save the exact status (REGISTERED, ATTENDED, NO_SHOW, etc.)
+                setAttendanceStatus(registration.attendanceStatus);
+                
+                // Consider them "Registered" for button UI purposes if they are registered OR attended
                 setIsRegistered(
-                  registration.attendanceStatus ===
-                  "REGISTERED"
+                  registration.attendanceStatus === "REGISTERED" || 
+                  registration.attendanceStatus === "ATTENDED"
                 );
               }
             } catch {
               if (active) {
                 setIsRegistered(false);
+                setAttendanceStatus(null);
               }
             }
           }
@@ -126,9 +134,7 @@ export default function EventDetailPage({
 
     return now >= scheduledTime - 15 * 60 * 1000;
   }, [event]);
-  console.log("event", event);
-  console.log("host", event?.host);
-  console.log("currentUser", currentUser);
+
   const isHost =
     !!event &&
     !!currentUser &&
@@ -142,6 +148,7 @@ export default function EventDetailPage({
 
   const hostBgColor = "#9474cc";
   const manageAttendeesBgColor = "#3d8ba8";
+  
   async function register() {
     setRegistering(true);
     setError(null);
@@ -160,6 +167,7 @@ export default function EventDetailPage({
       );
 
       setIsRegistered(true);
+      setAttendanceStatus("REGISTERED");
       setNotice("You’re registered.");
     } catch (cause) {
       setError(apiErrorMessage(cause));
@@ -189,6 +197,7 @@ export default function EventDetailPage({
       );
 
       setIsRegistered(false);
+      setAttendanceStatus(null);
       setNotice("You’ve unregistered.");
     } catch (cause) {
       setError(apiErrorMessage(cause));
@@ -253,13 +262,11 @@ export default function EventDetailPage({
     );
   }
 
-
   return (
     <main className="min-h-screen bg-[#121212] text-white relative z-50">
       <div className="mx-auto min-h-screen w-full max-w-md pb-10">
 
         {/* ================= HERO ================= */}
-
         <section className="relative h-[280px] overflow-hidden">
           <Image src="/Hero-Section.png" alt="" fill priority className="object-cover" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#121212] to-transparent" />
@@ -288,9 +295,9 @@ export default function EventDetailPage({
             {event.currentAttendees} / {event.maxAttendees} Going
           </div>
         </section>
+
         <div className="px-5">
           {/* ================= TITLE ================= */}
-
           <h1 className="mt-2 text-3xl font-display font-black tracking-wide">
             {event.name}
           </h1>
@@ -300,21 +307,14 @@ export default function EventDetailPage({
           </p>
 
           {/* ================= LOGISTICS ================= */}
-
           <div className="mt-6 flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
                 <Calendar className="h-5 w-5" />
               </div>
-
               <div>
-                <p className="font-bold tracking-tight text-white">
-                  {date}
-                </p>
-
-                <p className="text-xs font-medium text-gray-400">
-                  {time}
-                </p>
+                <p className="font-bold tracking-tight text-white">{date}</p>
+                <p className="text-xs font-medium text-gray-400">{time}</p>
               </div>
             </div>
 
@@ -322,12 +322,8 @@ export default function EventDetailPage({
               <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
                 <MapPin className="h-5 w-5" />
               </div>
-
               <div>
-                <p className="font-bold tracking-tight text-white">
-                  {event.hostel}
-                </p>
-
+                <p className="font-bold tracking-tight text-white">{event.hostel}</p>
                 <p className="text-xs font-medium text-gray-400">
                   {event.roomNumber || `Floor ${event.floor}`}
                 </p>
@@ -376,12 +372,6 @@ export default function EventDetailPage({
                 </div>
               </div>
             </div>
-            {event.reviews.length ? event.reviews.slice(0, 1).map((review) => (
-              <article key={review.id} className="mt-4 rounded-2xl bg-[#111] p-4">
-                <div className="flex justify-between"><b>{review.reviewer.displayName}</b><span className="text-[#facc15]">{review.rating}/5</span></div>
-                {review.comment && <p className="mt-3 text-sm italic text-[#d1d5db]">“{review.comment}”</p>}
-              </article>
-            )) : <p className="mt-4 rounded-2xl bg-[#111] p-4 text-sm text-[#9ca3af]">No reviews yet.</p>}
           </Link>
 
           {(error || notice) && (
@@ -393,7 +383,7 @@ export default function EventDetailPage({
           {/* ================= PARTICIPANT CONTROLS ================= */}
           {!isHost && (
             <div className="mt-8 flex flex-col gap-3">
-              {/* Main Action (Register/Unregister) */}
+              {/* Register/Unregister Button */}
               <button
                 type="button"
                 onClick={() => void (isRegistered ? unregister() : register())}
@@ -414,8 +404,8 @@ export default function EventDetailPage({
                 <Zap className="h-5 w-5 stroke-[2.5]" />
               </button>
 
-              {/* Submit Review Button (Registered Users Only) */}
-              {isRegistered && (
+              {/* Submit Review Button (Visible if user is Registered or Attended) */}
+              {(attendanceStatus === "REGISTERED" || attendanceStatus === "ATTENDED") && (
                 <button
                   type="button"
                   disabled={event.status !== "COMPLETED"}
@@ -478,10 +468,8 @@ export default function EventDetailPage({
               {/* Start/Finish/Cancel Controls */}
               {(event.status === "UPCOMING" || event.status === "ACTIVE") && (
                 <div 
-                  className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden border border-white/5"
-                  style={{ backgroundColor: hostBgColor }}
+                  className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden border border-white/5 bg-[#1e1e1e]"
                 >
-                  
                   {/* Top Right Ribbon (Dynamic Event Status) */}
                   <div
                     className="absolute top-0 right-0 bg-white h-[44px] flex items-center justify-end pr-5 pl-8 rounded-tr-[24px] z-10 shadow-sm"
@@ -540,20 +528,18 @@ export default function EventDetailPage({
                         </button>
                       )}
 
-                      {event.status === "UPCOMING" && (
-                        <button
-                          type="button"
-                          disabled={statusUpdating}
-                          onClick={() => {
-                            if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
-                              void updateEventStatus("CANCELLED");
-                            }
-                          }}
-                          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
-                        >
-                          Cancel Event
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={statusUpdating}
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
+                            void updateEventStatus("CANCELLED");
+                          }
+                        }}
+                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
+                      >
+                        Cancel Event
+                      </button>
                     </div>
                   </div>
                 </div>
