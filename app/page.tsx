@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { AlertCircle, Bell, ChevronRight, Loader2, Plus, X } from "lucide-react";
+import { AlertCircle, Bell, ChevronRight, Loader2, Plus, X, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";
@@ -94,6 +94,16 @@ const EVENTS_PER_PAGE = 2;
 export default function HomePage() {
   // Alert Banner State
   const [pendingCount, setPendingCount] = useState(2);
+  const [registeredEventName, setRegisteredEventName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (registeredEventName) {
+      const timer = setTimeout(() => {
+        setRegisteredEventName(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [registeredEventName]);
 
   // Pagination State (for "Coming up")
   const [currentPage, setCurrentPage] = useState(0);
@@ -211,7 +221,8 @@ export default function HomePage() {
   const handleJoin = async (eventId: string, e: React.MouseEvent) => {
     try {
       await eventApi.register(eventId);
-      alert("Successfully registered for the event!");
+      const matchedEvent = happeningNow.find(evt => evt.id === eventId) || comingUp.find(evt => evt.id === eventId);
+      setRegisteredEventName(matchedEvent?.name || "the event");
       const updateAttendees = (list: EventListItem[]) =>
         list.map((evt) =>
           evt.id === eventId
@@ -399,6 +410,28 @@ export default function HomePage() {
         <Plus className="w-5 h-5 stroke-[3]" />
         <span>Make event</span>
       </button>
+
+      {/* Success Confirmation Toast */}
+      {registeredEventName && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-[#12231b] p-4 text-white shadow-2xl backdrop-blur-md">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+              <Check className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-bold text-emerald-400">Successfully Registered!</h4>
+              <p className="text-xs text-gray-300 truncate mt-0.5">You are going to: {registeredEventName}</p>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setRegisteredEventName(null)}
+              className="text-gray-400 hover:text-white transition cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

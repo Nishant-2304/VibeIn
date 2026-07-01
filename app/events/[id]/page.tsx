@@ -141,6 +141,7 @@ export default function EventDetailPage({
     event.currentAttendees < event.maxAttendees;
 
   const hostBgColor = "#9474cc";
+  const manageAttendeesBgColor = "#3d8ba8";
   async function register() {
     setRegistering(true);
     setError(null);
@@ -252,11 +253,6 @@ export default function EventDetailPage({
     );
   }
 
-  const registrationOpen =
-    (event.status === "UPCOMING" || event.status === "ACTIVE") &&
-    event.currentAttendees < event.maxAttendees;
-
-  const isHost = event && currentUser && event.host.id === currentUser.id;
 
   return (
     <main className="min-h-screen bg-[#121212] text-white relative z-50">
@@ -386,7 +382,7 @@ export default function EventDetailPage({
                 {review.comment && <p className="mt-3 text-sm italic text-[#d1d5db]">“{review.comment}”</p>}
               </article>
             )) : <p className="mt-4 rounded-2xl bg-[#111] p-4 text-sm text-[#9ca3af]">No reviews yet.</p>}
-          </section>
+          </Link>
 
           {(error || notice) && (
             <p className={`mt-6 p-3 rounded-xl text-center text-sm font-bold border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
@@ -481,7 +477,10 @@ export default function EventDetailPage({
 
               {/* Start/Finish/Cancel Controls */}
               {(event.status === "UPCOMING" || event.status === "ACTIVE") && (
-                <div className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden bg-hostBgColor border border-white/5">
+                <div 
+                  className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden border border-white/5"
+                  style={{ backgroundColor: hostBgColor }}
+                >
                   
                   {/* Top Right Ribbon (Dynamic Event Status) */}
                   <div
