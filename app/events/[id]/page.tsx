@@ -5,7 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Calendar, MapPin, Pencil, Star, Zap, ArrowRight } from "lucide-react";
+import { Calendar, MapPin, Star, Zap, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { createClient } from "../../../lib/supabase/client";
 import {
   apiErrorMessage,
   eventApi,
@@ -18,29 +20,49 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [isHost, setIsHost] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
 
-    eventApi
-      .get(params.id)
-      .then((data) => {
+    const supabase = createClient();
+
+    async function loadData() {
+      try {
+        const eventData = await eventApi.get(params.id);
         if (!active) return;
-        setEvent(data);
-        // Resolve host ownership lazily. If the user isn't logged in or the
-        // request fails we simply won't show the edit pencil.
-        userApi
-          .getMe()
-          .then((me) => active && setIsHost(me?.id === data.host.id))
-          .catch(() => active && setIsHost(false));
-      })
-      .catch((cause) => active && setError(apiErrorMessage(cause)))
-      .finally(() => active && setLoading(false));
+        setEvent(eventData);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!active) return;
+
+        if (session?.user) {
+          setCurrentUser(session.user);
+          if (eventData.host.id !== session.user.id) {
+            try {
+              const reg = await eventApi.getRegistration(params.id, session.user.id);
+              if (active) {
+                setIsRegistered(reg.attendanceStatus === "REGISTERED");
+              }
+            } catch (regError) {
+              if (active) setIsRegistered(false);
+            }
+          }
+        }
+      } catch (cause) {
+        if (active) setError(apiErrorMessage(cause));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadData();
 
     return () => {
       active = false;
@@ -69,6 +91,14 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     [event]
   );
 
+  const canStartEvent = useMemo(() => {
+    if (!event) return false;
+    const now = new Date().getTime();
+    const scheduledTime = new Date(event.scheduledAt).getTime();
+    // 15 minutes before scheduled start time
+    return now >= (scheduledTime - 15 * 60 * 1000);
+  }, [event]);
+
   async function register() {
     setRegistering(true);
     setError(null);
@@ -81,6 +111,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
           ? { ...current, currentAttendees: current.currentAttendees + 1 }
           : current
       );
+      setIsRegistered(true);
       setNotice("You’re registered.");
     } catch (cause) {
       setError(apiErrorMessage(cause));
@@ -89,7 +120,49 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     }
   }
 
-  // Loading State - removed bottom navbar padding
+  async function unregister() {
+    setRegistering(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      await eventApi.unregister(params.id);
+      setEvent((current) =>
+        current
+          ? { ...current, currentAttendees: Math.max(0, current.currentAttendees - 1) }
+          : current
+      );
+      setIsRegistered(false);
+      setNotice("You’ve unregistered.");
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+    } finally {
+      setRegistering(false);
+    }
+  }
+
+  async function updateEventStatus(newStatus: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+    setStatusUpdating(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const updatedEvent = await eventApi.updateStatus(params.id, newStatus);
+      setEvent(updatedEvent);
+      if (newStatus === "CANCELLED") {
+        setNotice("Event cancelled.");
+      } else if (newStatus === "ACTIVE") {
+        setNotice("Event started.");
+      } else if (newStatus === "COMPLETED") {
+        router.push(`/events/${params.id}/participants/reviews`);
+      }
+    } catch (cause) {
+      setError(apiErrorMessage(cause));
+    } finally {
+      setStatusUpdating(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="flex-1 relative px-5 pt-6 pb-10 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans z-50">
@@ -118,7 +191,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     (event.status === "UPCOMING" || event.status === "ACTIVE") &&
     event.currentAttendees < event.maxAttendees;
 
-  const hostBgColor = "#9474cc";
+  const isHost = event && currentUser && event.host.id === currentUser.id;
 
   return (
     <main className="min-h-screen bg-[#121212] text-white relative z-50">
@@ -126,6 +199,14 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
         
         {/* ================= HERO IMAGE ================= */}
         <section className="relative h-[280px] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="absolute top-4 left-4 z-10 rounded-full bg-black/60 p-2 text-white transition active:scale-95 cursor-pointer"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-6 w-6" />
+          </button>
           <Image src="/Hero-Section.png" alt="" fill priority className="object-cover" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#121212] to-transparent" />
           
@@ -236,25 +317,83 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 </div>
               </div>
             </div>
-          </Link>
+            {event.reviews.length ? event.reviews.slice(0, 1).map((review) => (
+              <article key={review.id} className="mt-4 rounded-2xl bg-[#111] p-4">
+                <div className="flex justify-between"><b>{review.reviewer.displayName}</b><span className="text-[#facc15]">{review.rating}/5</span></div>
+                {review.comment && <p className="mt-3 text-sm italic text-[#d1d5db]">“{review.comment}”</p>}
+              </article>
+            )) : <p className="mt-4 rounded-2xl bg-[#111] p-4 text-sm text-[#9ca3af]">No reviews yet.</p>}
+          </section>
 
-          {/* ================= ALERTS & CTA ================= */}
-          {(error || notice) && (
-            <div className={`mt-6 p-3 rounded-xl text-center text-sm font-bold border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
-              {error || notice}
-            </div>
+          {(error || notice) && <p className={`mt-4 text-sm ${error ? "text-red-300" : "text-emerald-300"}`}>{error || notice}</p>}
+
+          {!isHost && (
+            <button
+              type="button"
+              onClick={() => void (isRegistered ? unregister() : register())}
+              disabled={(!isRegistered && !registrationOpen) || registering}
+              className="mt-8 flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-[#b792ea] font-medium uppercase tracking-[0.18em] text-[#3b2466] disabled:opacity-40"
+            >
+              {registering
+                ? (isRegistered ? "Unregistering..." : "Registering...")
+                : isRegistered
+                ? "Unregister"
+                : registrationOpen
+                ? "Register"
+                : "Registration closed"}
+              <Zap className="h-6 w-6" />
+            </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => void register()}
-            disabled={!registrationOpen || registering}
-            className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#c8aaf5] hover:bg-[#b894ec] font-display font-black text-xl tracking-wider text-[#2c124d] disabled:opacity-50 disabled:grayscale transition-all active:scale-[0.99] shadow-[0_4px_25px_rgba(155,114,207,0.3)]"
-          >
-            {registering ? "Registering..." : registrationOpen ? "Register" : "Registration Closed"}
-            <Zap className="h-5 w-5 stroke-[2.5]" />
-          </button>
-          
+          {isHost && (event.status === "UPCOMING" || event.status === "ACTIVE") && (
+            <div className="mt-8 rounded-2xl border border-white/10 bg-[#131313] p-5 space-y-4">
+              <h3 className="font-extrabold text-sm uppercase tracking-wider text-purple-300">Host Controls</h3>
+              
+              <div className="flex flex-col gap-3">
+                {event.status === "UPCOMING" && (
+                  <div>
+                    <button
+                      type="button"
+                      disabled={!canStartEvent || statusUpdating}
+                      onClick={() => void updateEventStatus("ACTIVE")}
+                      className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-emerald-500 font-semibold uppercase tracking-[0.12em] text-black disabled:opacity-40 transition active:scale-[0.98] cursor-pointer"
+                    >
+                      {statusUpdating ? "Starting..." : "Start Event"}
+                    </button>
+                    {!canStartEvent && (
+                      <p className="mt-2 text-xs text-gray-400 text-center font-medium">
+                        Available starting 15 mins before scheduled time.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {event.status === "ACTIVE" && (
+                  <button
+                    type="button"
+                    disabled={statusUpdating}
+                    onClick={() => void updateEventStatus("COMPLETED")}
+                    className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-purple-500 font-semibold uppercase tracking-[0.12em] text-white disabled:opacity-40 transition active:scale-[0.98] cursor-pointer"
+                  >
+                    {statusUpdating ? "Finishing..." : "Finish Event"}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  disabled={statusUpdating}
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
+                      void updateEventStatus("CANCELLED");
+                    }
+                  }}
+                  className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-red-500/30 bg-red-950/20 font-semibold uppercase tracking-[0.12em] text-red-400 disabled:opacity-40 transition active:scale-[0.98] hover:bg-red-950/40 cursor-pointer"
+                >
+                  Cancel Event
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

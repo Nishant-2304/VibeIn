@@ -73,7 +73,8 @@ function formatScheduledAt(iso: string) {
 
 function toCardProps(
   event: EventListItem,
-  index: number
+  index: number,
+  onJoin: (id: string, e: React.MouseEvent) => void
 ): EventCardProps {
   return {
     id: event.id,
@@ -83,6 +84,7 @@ function toCardProps(
     description: event.description ?? "",
     time: formatScheduledAt(event.scheduledAt),
     bgColor: EVENTS_FEED_COLOR_ORDER[index % EVENTS_FEED_COLOR_ORDER.length],
+    onJoin,
   };
 }
 
@@ -184,9 +186,25 @@ export default function EventsFeedPage() {
     router.push("/events/create");
   };
 
+  const handleJoin = async (eventId: string, e: React.MouseEvent) => {
+    try {
+      await eventApi.register(eventId);
+      alert("Successfully registered for the event!");
+      setEvents((prev) =>
+        prev.map((evt) =>
+          evt.id === eventId
+            ? { ...evt, currentAttendees: evt.currentAttendees + 1 }
+            : evt
+        )
+      );
+    } catch (err) {
+      alert(apiErrorMessage(err));
+    }
+  };
+
   const cardEvents = useMemo(
-    () => events.map((event, idx) => toCardProps(event, idx)),
-    [events]
+    () => events.map((event, idx) => toCardProps(event, idx, handleJoin)),
+    [events, handleJoin]
   );
 
   return (

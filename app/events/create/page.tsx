@@ -231,18 +231,20 @@ export default function CreateEventPage() {
         );
       case "hostel":
         return (
-          <select
-            value={form.hostel}
-            onChange={(e) => updateField("hostel", e.target.value)}
-            className="flex w-full items-center justify-between rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-left text-[16px] text-white"
-          >
-            <option value="">{currentStep.placeholder}</option>
-            {hostels.map((hostel) => (
-              <option key={hostel} value={hostel}>
-                Hostel {hostel}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={form.hostel}
+              onChange={(e) => updateField("hostel", e.target.value)}
+              className="w-full bg-[#16161A] border border-zinc-800 rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-all appearance-none text-white focus:border-[#9D7BDE] cursor-pointer"
+            >
+              <option value="" disabled hidden>{currentStep.placeholder}</option>
+              {hostels.map((hostel) => (
+                <option key={hostel} value={hostel}>
+                  Hostel {hostel}
+                </option>
+              ))}
+            </select>
+          </div>
         );
       case "floorRoom":
         return (

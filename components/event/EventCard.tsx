@@ -9,6 +9,7 @@ export interface EventCardProps {
   description: string;
   time: string;
   bgColor: string;
+  onJoin?: (id: string, e: React.MouseEvent) => void;
 }
 
 export default function EventCard({
@@ -19,6 +20,7 @@ export default function EventCard({
   description,
   time,
   bgColor,
+  onJoin,
 }: EventCardProps) {
   // Maintained your rigid h-[210px] for horizontal carousel stability
   const cardClassName =
@@ -78,9 +80,13 @@ export default function EventCard({
           <button
             type="button"
             onClick={(e) => {
-              if (id) e.stopPropagation();
+              e.stopPropagation();
+              e.preventDefault();
+              if (id && onJoin) {
+                onJoin(id, e);
+              }
             }}
-            className="bg-[#121212] hover:bg-black text-white font-display text-lg tracking-wider px-7 py-1.5 rounded-xl shadow-xl active:scale-95 transition-all cursor-pointer shrink-0"
+            className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
           >
             Join!
           </button>
