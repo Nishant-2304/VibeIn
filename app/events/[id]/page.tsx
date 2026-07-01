@@ -5,8 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, MapPin, Star, Zap, ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Calendar, MapPin, Star, Zap, ArrowLeft, Pencil, ArrowRight } from "lucide-react";
 import { createClient } from "../../../lib/supabase/client";
 import {
   apiErrorMessage,
@@ -191,6 +190,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
     (event.status === "UPCOMING" || event.status === "ACTIVE") &&
     event.currentAttendees < event.maxAttendees;
 
+  const hostBgColor = "#9474cc";
   const isHost = event && currentUser && event.host.id === currentUser.id;
 
   return (
@@ -323,7 +323,7 @@ export default function EventDetailPage({ params }: { params: { id: string } }) 
                 {review.comment && <p className="mt-3 text-sm italic text-[#d1d5db]">“{review.comment}”</p>}
               </article>
             )) : <p className="mt-4 rounded-2xl bg-[#111] p-4 text-sm text-[#9ca3af]">No reviews yet.</p>}
-          </section>
+          </Link>
 
           {(error || notice) && <p className={`mt-4 text-sm ${error ? "text-red-300" : "text-emerald-300"}`}>{error || notice}</p>}
 
