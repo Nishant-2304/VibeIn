@@ -261,12 +261,6 @@ export default function EventDetailPage({
     );
   }
 
-  const registrationOpen =
-    (event.status === "UPCOMING" || event.status === "ACTIVE") &&
-    event.currentAttendees < event.maxAttendees;
-
-  const isHost = event && currentUser && event.host.id === currentUser.id;
-  const hostBgColor = "#9474cc";
   const manageAttendeesBgColor = "#3d8ba8";
 
   return (
@@ -390,8 +384,8 @@ export default function EventDetailPage({
                   <ArrowRight className="w-5 h-5 stroke-[2.5]" />
                 </div>
               </div>
-            </Link>
-          )}
+            </div>
+          </Link>
 
           {/* ================= REVIEWS ================= */}
 
@@ -410,7 +404,7 @@ export default function EventDetailPage({
                 </Link>
               )}
             </div>
-          </Link>
+          </section>
 
           {(error || notice) && (
             <p className={`mt-6 p-3 rounded-xl text-center text-sm font-bold border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
