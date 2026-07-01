@@ -7,7 +7,7 @@
 import type { Prisma, College, Gender, UserRole } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { UserRepository } from "../repositories/user.repository";
-import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
 import { createClient } from "../lib/supabase/server";
 
 type UserProfileUpdate = {
@@ -48,10 +48,35 @@ export class UserService {
       throw new ValidationError("No valid profile fields provided");
     }
 
-    const user = await UserRepository.update(userId, updateData);
-    const rating = await this.getUserRating(userId);
+    // Check username uniqueness
+    if (updateData.username) {
+      const usernameStr = updateData.username as string;
+      const existingUser = await prisma.user.findUnique({
+        where: { username: usernameStr },
+      });
+      if (existingUser && existingUser.id !== userId) {
+        throw new ConflictError("Username is already taken");
+      }
+    }
 
-    return this.toProfile(user, rating);
+    try {
+      const user = await UserRepository.update(userId, updateData);
+      const rating = await this.getUserRating(userId);
+
+      return this.toProfile(user, rating);
+    } catch (error: any) {
+      // Catch database unique constraint error for username (P2002)
+      if (error?.code === "P2002") {
+        const target = error?.meta?.target;
+        if (
+          (Array.isArray(target) && target.includes("username")) ||
+          (typeof target === "string" && target.includes("username"))
+        ) {
+          throw new ConflictError("Username is already taken");
+        }
+      }
+      throw error;
+    }
   }
 
   /**

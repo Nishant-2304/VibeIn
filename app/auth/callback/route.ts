@@ -23,11 +23,29 @@ export async function GET(request: Request) {
       });
 
       if (!existingUser) {
+        const rawUsername = (user.user_metadata.full_name || user.email?.split("@")[0] || "user").trim();
+        const baseUsername = rawUsername || "user";
+        let username = baseUsername;
+        let isUnique = false;
+        let suffix = 1;
+
+        while (!isUnique) {
+          const u = await prisma.user.findUnique({
+            where: { username },
+          });
+          if (!u) {
+            isUnique = true;
+          } else {
+            username = `${baseUsername}${suffix}`;
+            suffix++;
+          }
+        }
+
         await prisma.user.create({
           data: {
             id: user.id,
             email: user.email!,
-            username: user.user_metadata.full_name || user.email!.split("@")[0],
+            username,
           },
         });
 
