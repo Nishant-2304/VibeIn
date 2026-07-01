@@ -159,7 +159,11 @@ export default function ProfilePage() {
         </h2>
 
         <div className="w-full bg-[#1e1e1e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-lg">
-          <SettingsItem icon={<Edit3 className="w-5 h-5 text-[#b594e6]" />} label="Edit Profile" />
+          
+          {/* ---> Wrapped in Link pointing to /profile/edit <--- */}
+          <Link href="/profile/edit" className="block">
+            <SettingsItem icon={<Edit3 className="w-5 h-5 text-[#b594e6]" />} label="Edit Profile" />
+          </Link>
           
           <Link href="/profile/events" className="block">
             <SettingsItem icon={<Ticket className="w-5 h-5 text-[#f5c242]" />} label="My Events" />
