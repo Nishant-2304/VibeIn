@@ -1,6 +1,6 @@
 import {
   errorResponse,
-  formatEventMutation,
+  formatEventDetail,
   handleRouteError,
   jsonResponse,
 } from "../../../../../lib/event-api";
@@ -24,9 +24,10 @@ export async function PATCH(
       isAdmin: currentUser.role === "ADMIN",
     };
 
-    const event = await EventService.updateEventStatus(params.id, body, actor);
+    await EventService.updateEventStatus(params.id, body, actor);
+    const event = await EventService.getEventById(params.id);
 
-    return jsonResponse(formatEventMutation(event));
+    return jsonResponse(formatEventDetail(event, true));
   } catch (error) {
     return handleRouteError(error);
   }

@@ -127,9 +127,18 @@ export class EventService {
 
     const [events, total] = await EventRepository.findAll(where, pagination);
 
-    // Lazily transition any UPCOMING events whose start time has passed to
-    // ACTIVE. Done in a single bulk update for efficiency; manual status
-    // changes (ACTIVE, COMPLETED, CANCELLED) are preserved by the filter.
+    // Lazily transition ended events to COMPLETED first
+    const completedIds = await this.completeEndedEvents(events);
+    if (completedIds.size > 0) {
+      for (const event of events) {
+        if (completedIds.has(event.id)) {
+          event.event_status = EventStatus.COMPLETED;
+        }
+      }
+    }
+
+    // Lazily transition any remaining UPCOMING events whose start time has passed to
+    // ACTIVE. Done in a single bulk update for efficiency.
     const activatedIds = await this.activateDueEvents(events);
     if (activatedIds.size > 0) {
       for (const event of events) {
@@ -149,11 +158,18 @@ export class EventService {
       throw new NotFoundError("Event not found.");
     }
 
-    // Lazy transition: if the start time has passed and the host hasn't
-    // manually moved it past UPCOMING, treat it as ACTIVE.
+    // Lazy transition: if the event duration has passed, transition to COMPLETED.
+    const now = new Date();
+    const endTime = new Date(event.event_time.getTime() + event.duration_minutes * 60 * 1000);
     if (
+      (event.event_status === EventStatus.UPCOMING || event.event_status === EventStatus.ACTIVE) &&
+      endTime <= now
+    ) {
+      await EventRepository.updateStatusToCompletedForEndedEvent(id);
+      event.event_status = EventStatus.COMPLETED;
+    } else if (
       event.event_status === EventStatus.UPCOMING &&
-      event.event_time <= new Date()
+      event.event_time <= now
     ) {
       await EventRepository.updateStatusToActiveForDueEvent(id);
       event.event_status = EventStatus.ACTIVE;
@@ -399,5 +415,25 @@ export class EventService {
     return EventRepository.update(id, {
       event_status: data.status,
     });
+  }
+
+  private static async completeEndedEvents(
+    events: { id: string; event_status: EventStatus; event_time: Date; duration_minutes: number }[]
+  ): Promise<Set<string>> {
+    const now = new Date();
+    const endedIds = events
+      .filter((event) => {
+        const endTime = new Date(event.event_time.getTime() + event.duration_minutes * 60 * 1000);
+        return (
+          (event.event_status === EventStatus.UPCOMING || event.event_status === EventStatus.ACTIVE) &&
+          endTime <= now
+        );
+      })
+      .map((event) => event.id);
+
+    if (endedIds.length === 0) return new Set();
+
+    await EventRepository.updateStatusToCompletedForEndedEvents(endedIds);
+    return new Set(endedIds);
   }
 }

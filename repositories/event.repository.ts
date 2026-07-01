@@ -157,4 +157,25 @@ export class EventRepository {
       data: { event_status: "ACTIVE" },
     });
   }
+
+  static async updateStatusToCompletedForEndedEvents(ids: string[]) {
+    if (ids.length === 0) return;
+    await prisma.event.updateMany({
+      where: {
+        id: { in: ids },
+        event_status: { in: ["UPCOMING", "ACTIVE"] },
+      },
+      data: { event_status: "COMPLETED" },
+    });
+  }
+
+  static async updateStatusToCompletedForEndedEvent(id: string) {
+    await prisma.event.updateMany({
+      where: {
+        id,
+        event_status: { in: ["UPCOMING", "ACTIVE"] },
+      },
+      data: { event_status: "COMPLETED" },
+    });
+  }
 }

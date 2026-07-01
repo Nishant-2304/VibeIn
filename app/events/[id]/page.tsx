@@ -540,18 +540,20 @@ export default function EventDetailPage({
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        disabled={statusUpdating}
-                        onClick={() => {
-                          if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
-                            void updateEventStatus("CANCELLED");
-                          }
-                        }}
-                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
-                      >
-                        Cancel Event
-                      </button>
+                      {event.status === "UPCOMING" && (
+                        <button
+                          type="button"
+                          disabled={statusUpdating}
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
+                              void updateEventStatus("CANCELLED");
+                            }
+                          }}
+                          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
+                        >
+                          Cancel Event
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
