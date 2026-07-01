@@ -385,6 +385,7 @@ export class EventService {
       `${EventStatus.UPCOMING}:${EventStatus.CANCELLED}`,
       `${EventStatus.ACTIVE}:${EventStatus.COMPLETED}`,
       `${EventStatus.UPCOMING}:${EventStatus.COMPLETED}`,
+      `${EventStatus.UPCOMING}:${EventStatus.ACTIVE}`,
     ]);
     const transition = `${event.event_status}:${data.status}`;
 

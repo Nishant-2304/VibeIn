@@ -10,6 +10,7 @@ export interface EventCardProps {
   description: string;
   time: string;
   bgColor: string;
+  onJoin?: (id: string, e: React.MouseEvent) => void;
 }
 
 export default function EventCard({
@@ -20,6 +21,7 @@ export default function EventCard({
   description,
   time,
   bgColor,
+  onJoin,
 }: EventCardProps) {
   const cardClassName =
     "w-full h-[210px] rounded-3xl p-5 flex flex-col justify-between shadow-lg transition-transform active:scale-[0.99] select-none text-[#1e1e1e]";
@@ -65,7 +67,13 @@ export default function EventCard({
 
           <button
             type="button"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (id && onJoin) {
+                onJoin(id, e);
+              }
+            }}
             className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
           >
             Join!

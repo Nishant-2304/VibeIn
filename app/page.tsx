@@ -74,7 +74,8 @@ function formatScheduledAt(iso: string) {
 function toCardProps(
   event: EventListItem,
   colorOrder: readonly string[],
-  index: number
+  index: number,
+  onJoin: (id: string, e: React.MouseEvent) => void
 ): EventCardProps {
   return {
     id: event.id,
@@ -84,6 +85,7 @@ function toCardProps(
     description: event.description ?? "",
     time: formatScheduledAt(event.scheduledAt),
     bgColor: colorOrder[index % colorOrder.length],
+    onJoin,
   };
 }
 
@@ -186,10 +188,27 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [isPaused]);
 
+  const handleJoin = async (eventId: string, e: React.MouseEvent) => {
+    try {
+      await eventApi.register(eventId);
+      alert("Successfully registered for the event!");
+      const updateAttendees = (list: EventListItem[]) =>
+        list.map((evt) =>
+          evt.id === eventId
+            ? { ...evt, currentAttendees: evt.currentAttendees + 1 }
+            : evt
+        );
+      setHappeningNow(updateAttendees);
+      setComingUp(updateAttendees);
+    } catch (err) {
+      alert(apiErrorMessage(err));
+    }
+  };
+
   // Build card props with stable per-section color cycles.
   const happeningNowCards = useMemo(
-    () => happeningNow.map((e, i) => toCardProps(e, HAPPENING_NOW_COLOR_ORDER, i)),
-    [happeningNow]
+    () => happeningNow.map((e, i) => toCardProps(e, HAPPENING_NOW_COLOR_ORDER, i, handleJoin)),
+    [happeningNow, handleJoin]
   );
 
   const totalPages = Math.max(1, Math.ceil(comingUp.length / EVENTS_PER_PAGE));
@@ -197,8 +216,8 @@ export default function HomePage() {
     const start = currentPage * EVENTS_PER_PAGE;
     return comingUp
       .slice(start, start + EVENTS_PER_PAGE)
-      .map((e, i) => toCardProps(e, COMING_UP_COLOR_ORDER, start + i));
-  }, [comingUp, currentPage]);
+      .map((e, i) => toCardProps(e, COMING_UP_COLOR_ORDER, start + i, handleJoin));
+  }, [comingUp, currentPage, handleJoin]);
 
   const router = useRouter();
 

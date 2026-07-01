@@ -256,6 +256,27 @@ export const eventApi = {
       true
     );
   },
+  unregister(id: string) {
+    return apiRequest<{ message: string }>(
+      `/api/events/${encodeURIComponent(id)}/registrations/me`,
+      { method: "DELETE" },
+      true
+    );
+  },
+  updateStatus(id: string, status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED") {
+    return apiRequest<EventDetail>(
+      `/api/events/${encodeURIComponent(id)}/status`,
+      { method: "PATCH", body: JSON.stringify({ status }) },
+      true
+    );
+  },
+  getRegistration(eventId: string, userId: string) {
+    return apiRequest<Registration>(
+      `/api/events/${encodeURIComponent(eventId)}/registrations/${encodeURIComponent(userId)}`,
+      {},
+      true
+    );
+  },
 };
 
 // Raw shape returned by GET /api/users/me/events. The `hosting` and

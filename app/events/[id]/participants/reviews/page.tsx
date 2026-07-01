@@ -12,8 +12,6 @@ import {
 
 type Draft = { rating: number; comment: string };
 
-const participantReviewColors = ["#A381D6", "#E85DA1", "#CA8200", "#007EA1"];
-
 export default function SubmitParticipantReviewsPage({ params }: { params: { id: string } }) {
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -91,31 +89,27 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
         )}
 
         <section className="mt-8 space-y-5">
-          {registrations.map((registration, index) => {
+          {registrations.map((registration) => {
             const draft = drafts[registration.user.id] || { rating: 0, comment: "" };
             const done = submitted[registration.user.id];
-            const cardColor = participantReviewColors[index % participantReviewColors.length];
-            const starColor = participantReviewColors[(index + 1) % participantReviewColors.length];
             return (
               <article
                 key={registration.id}
-                className="rounded-[24px] border border-white/10 p-4"
-                style={{ backgroundColor: cardColor }}
+                className="rounded-[24px] border border-white/10 p-5 bg-[#131313] shadow-md"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">{registration.user.displayName}</h2>
-                    <p className="text-xs text-[#4eb2df]">{registration.attendanceStatus === "NO_SHOW" ? "No show" : "Attended"}</p>
+                    <h2 className="text-lg font-semibold text-white">{registration.user.displayName}</h2>
+                    <p className="text-xs font-semibold text-[#a78bfa]">{registration.attendanceStatus === "NO_SHOW" ? "No show" : "Attended"}</p>
                   </div>
-                  <span className="text-xs text-[#9ca3af]">Community {registration.user.participantRating.toFixed(1)}</span>
+                  <span className="text-xs text-[#9ca3af] font-medium">Community {registration.user.participantRating.toFixed(1)}</span>
                 </div>
 
                 <div className="mt-4 flex gap-2">
                   {[1, 2, 3, 4, 5].map((rating) => (
                     <button key={rating} type="button" disabled={done} onClick={() => changeDraft(registration.user.id, { rating })} aria-label={`Rate ${registration.user.displayName} ${rating} stars`}>
                       <Star
-                        className={`h-7 w-7 ${rating <= draft.rating ? "fill-current" : "text-white/25"}`}
-                        style={rating <= draft.rating ? { color: starColor } : undefined}
+                        className={`h-7 w-7 ${rating <= draft.rating ? "fill-current text-[#facc15]" : "text-white/20"}`}
                       />
                     </button>
                   ))}
@@ -127,14 +121,14 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
                   onChange={(e) => changeDraft(registration.user.id, { comment: e.target.value })}
                   placeholder="Optional comment"
                   rows={3}
-                  className="mt-4 w-full rounded-2xl border border-white/10 bg-transparent p-4 outline-none focus:border-[#b792ea] disabled:opacity-50"
+                  className="mt-4 w-full rounded-2xl border border-white/10 bg-[#1c1c1e] p-4 outline-none focus:border-[#b792ea] disabled:opacity-50 text-white placeholder-white/20 text-sm font-medium"
                 />
                 {errors[registration.user.id] && <p className="mt-2 text-sm text-red-300">{errors[registration.user.id]}</p>}
                 <button
                   type="button"
                   disabled={done || submitting[registration.user.id]}
                   onClick={() => void submitReview(registration.user.id)}
-                  className="mt-4 w-full rounded-2xl bg-[#b792ea] py-3 font-medium text-[#3c235f] disabled:opacity-50"
+                  className="mt-4 w-full rounded-2xl bg-[#b792ea] py-3 font-semibold text-[#3c235f] disabled:opacity-50 transition active:scale-[0.98] cursor-pointer"
                 >
                   {done ? "Review submitted" : submitting[registration.user.id] ? "Submitting…" : "Submit review"}
                 </button>
