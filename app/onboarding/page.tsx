@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
+import { getHostelsForGender } from "../../lib/constants";
 
 // Types for form state
 interface FormData {
@@ -15,7 +16,6 @@ interface FormData {
 }
 
 const DEFAULT_PFP_OPTIONS = ["😎", "🐱", "🚀", "🎨", "👾"];
-const HOSTEL_OPTIONS = ["A Block", "B Block", "C Block", "D Block"];
 
 export default function Onboarding() {
   const router = useRouter();
@@ -288,7 +288,13 @@ export default function Onboarding() {
                     <option value="" disabled hidden>
                       {!formData.gender ? "Select Hostel Type first" : "Choose Block"}
                     </option>
-                    {HOSTEL_OPTIONS.map((block) => (
+                    {getHostelsForGender(
+                      formData.gender === "Boy"
+                        ? "MALE"
+                        : formData.gender === "Girl"
+                        ? "FEMALE"
+                        : null
+                    ).map((block) => (
                       <option key={block} value={block}>{block}</option>
                     ))}
                   </select>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Send, Star } from "lucide-react";
+import { createClient } from "../../../../lib/supabase/client";
 import {
   apiErrorMessage,
   eventApi,
@@ -52,38 +53,146 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  // The current user's registration status for this event. null when the
+  // user is not registered. Used to enforce review eligibility on this
+  // page (not just on the event detail page).
+  const [attendanceStatus, setAttendanceStatus] = useState<string | null>(null);
+  // True when the event host is viewing this page. Hosts can never review
+  // their own event.
+  const [isHost, setIsHost] = useState(false);
+  // Track when eligibility has been confirmed and we are ready to render
+  // the form. We need both the event and the current user's registration
+  // (or a confirmed "not registered / host" state) before showing the form.
+  const [eligibilityChecked, setEligibilityChecked] = useState(false);
 
   useEffect(() => {
     let active = true;
-    eventApi
-      .get(params.id)
-      .then((data) => {
-        if (!active) return;
-        setEvent(data);
-        // Prevent duplicate submissions in the UI: if the loaded event
-        // already has the current user's review attached, skip the form
-        // and bounce straight back to the event page.
-        if (data.reviews && data.reviews.length > 0) {
-          setAlreadySubmitted(true);
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        if (active) {
+          setError("You must be signed in to submit a review.");
+          setLoading(false);
         }
-      })
-      .catch((cause) => active && setError(apiErrorMessage(cause)))
-      .finally(() => active && setLoading(false));
+        return;
+      }
+
+      try {
+        const data = await eventApi.get(params.id);
+        if (!active) return;
+
+        setEvent(data);
+
+        // Hosts cannot review their own event.
+        if (data.host?.id === session.user.id) {
+          setIsHost(true);
+          setEligibilityChecked(true);
+          setLoading(false);
+          return;
+        }
+
+        // Look up the caller's registration so we can enforce the same
+        // eligibility rules as the event detail page.
+        try {
+          const registration = await eventApi.getRegistration(
+            params.id,
+            session.user.id
+          );
+          if (active) {
+            setAttendanceStatus(registration.attendanceStatus);
+
+            if (
+              data.reviews &&
+              data.reviews.length > 0
+            ) {
+              setAlreadySubmitted(true);
+            }
+          }
+        } catch {
+          // No registration for this user. Leave attendanceStatus as null.
+          if (active) setAttendanceStatus(null);
+        }
+
+        if (active) {
+          setEligibilityChecked(true);
+          setLoading(false);
+        }
+      } catch (cause) {
+        if (active) {
+          setError(apiErrorMessage(cause));
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
     return () => {
       active = false;
     };
   }, [params.id]);
 
+  // Bounce ineligible visitors back to the event detail page.
   useEffect(() => {
-    if (!loading && alreadySubmitted) {
+    if (!eligibilityChecked) return;
+
+    if (isHost) {
       router.replace(`/events/${params.id}`);
+      return;
     }
-  }, [loading, alreadySubmitted, params.id, router]);
+
+    if (alreadySubmitted) {
+      router.replace(`/events/${params.id}`);
+      return;
+    }
+
+    if (event && event.status !== "COMPLETED") {
+      router.replace(`/events/${params.id}`);
+      return;
+    }
+
+    if (attendanceStatus !== "ATTENDED") {
+      // REGISTERED, NO_SHOW, CANCELLED, or null (not registered) all
+      // bounce. The event detail page shows the appropriate message.
+      router.replace(`/events/${params.id}`);
+      return;
+    }
+  }, [
+    eligibilityChecked,
+    isHost,
+    alreadySubmitted,
+    event,
+    attendanceStatus,
+    params.id,
+    router,
+  ]);
 
   async function submit() {
     setError(null);
     if (!eventRating || !hostRating) {
       setError("Rate both the event and the host before submitting.");
+      return;
+    }
+
+    // Defensive client-side guard: only ATTENDED, non-host, on a COMPLETED
+    // event can submit. Mirrors the redirect above.
+    if (isHost) {
+      setError("Hosts cannot review their own event.");
+      return;
+    }
+    if (!event || event.status !== "COMPLETED") {
+      setError("Reviews can only be submitted on completed events.");
+      return;
+    }
+    if (attendanceStatus !== "ATTENDED") {
+      setError("Only attended participants can submit reviews.");
       return;
     }
 
@@ -113,13 +222,21 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
           <h1 className="text-[22px] font-extrabold">Submit Review</h1>
         </header>
 
-        {loading ? (
+        {loading || !eligibilityChecked ? (
           <p className="mt-8 text-[#9ca3af]">Loading event…</p>
         ) : !event ? (
           <p className="mt-8 text-red-300">{error || "Event not found."}</p>
         ) : alreadySubmitted ? (
           // Brief intermediate state while the redirect runs.
           <p className="mt-8 text-[#9ca3af]">You’ve already reviewed this event. Redirecting…</p>
+        ) : isHost ? (
+          <p className="mt-8 text-[#9ca3af]">Hosts can’t review their own event. Redirecting…</p>
+        ) : event.status !== "COMPLETED" ? (
+          <p className="mt-8 text-[#9ca3af]">Reviews open after the event is completed. Redirecting…</p>
+        ) : attendanceStatus !== "ATTENDED" ? (
+          // REGISTERED / NO_SHOW / CANCELLED / not registered. The event
+          // detail page renders the user-friendly copy for each case.
+          <p className="mt-8 text-[#9ca3af]">Redirecting…</p>
         ) : (
           <>
             <section className="mt-6 rounded-[28px] border border-white/10 bg-[#131313] p-4">

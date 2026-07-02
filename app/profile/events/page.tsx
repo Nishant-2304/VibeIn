@@ -88,11 +88,13 @@ function toCardProps(
   index: number,
   hosted: boolean
 ): MyEventCardProps {
+  const participants = event.participants ?? [];
+
   return {
     id: event.id,
     title: event.eventname,
     time: formatScheduledAt(event.event_time),
-    joinedCount: `${event._count?.participants ?? 0} Joined`,
+    joinedCount: `${participants.length || event._count?.participants || 0} Joined`,
     roleBadge: hosted ? "HOST" : "ATTENDING",
     actionText: hosted ? "Manage" : "View Details",
     // Host → manage participants; attendee → view event details. The card
@@ -102,6 +104,11 @@ function toCardProps(
       : `/events/${encodeURIComponent(event.id)}`,
     bgColor:
       MY_EVENTS_COLOR_ORDER[index % MY_EVENTS_COLOR_ORDER.length],
+    avatars: participants.map((participant) => ({
+      id: participant.user.id,
+      name: participant.user.username,
+      pfp: participant.user.pfp,
+    })),
   };
 }
 

@@ -8,11 +8,29 @@ import {
   parsePagination,
 } from "../../../lib/event-api";
 import { EventService } from "../../../services/event.service";
-import { requireAuth } from "../../../lib/auth";
+import { requireAuth, getBearerToken } from "../../../lib/auth";
+import { UserService } from "../../../services/user.service";
+import { getHostelsForGender } from "../../../lib/constants";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const { page, limit, skip } = parsePagination(searchParams);
+
+  // Soft auth: if a valid bearer token is present, derive the caller's
+  // gender to scope the feed to their hostels. Anonymous or invalid
+  // tokens fall through to the unfiltered feed.
+  let genderHostels: string[] | null = null;
+  try {
+    const token = getBearerToken(request);
+    if (token) {
+      const currentUser = await UserService.getCurrentUser(token);
+      if (currentUser?.gender) {
+        genderHostels = getHostelsForGender(currentUser.gender);
+      }
+    }
+  } catch {
+    // anonymous or invalid token — fall through to no filter
+  }
 
   try {
     const { events, total } = await EventService.getAllEvents(
@@ -21,6 +39,7 @@ export async function GET(request: Request) {
         hostel: searchParams.get("hostel"),
         floor: searchParams.get("floor"),
         status: searchParams.get("status"),
+        hostels: genderHostels,
       },
       { skip, limit }
     );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -16,6 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import { apiErrorMessage, eventApi } from "../../../lib/client-api";
+import { getHostelsForGender } from "../../../lib/constants";
+import { createClient } from "../../../lib/supabase/client";
 
 type FormState = {
   eventName: string;
@@ -74,38 +76,19 @@ const steps = [
   {
     id: "maxAttendees",
     title: "Max Attendees",
-    subtitle: "Set the crowd size.",
+    subtitle: "Set the crowd size (excluding you).",
     icon: Users,
     placeholder: "10 people",
   },
 ] as const;
 
-const hostels = [
-  "A",
-  "B",
-  "C",
-  "D",
-  "E",
-  "F",
-  "G",
-  "H",
-  "J",
-  "K",
-  "L",
-  "M",
-  "N",
-  "P",
-  "Q",
-  "R",
-  "S",
-  "T",
-];
-
 const durationMinutesByLabel: Record<string, number> = {
   "30m": 30,
   "1h": 60,
+  "1h 30m": 90,
   "2h": 120,
   "3h": 180,
+  "5h": 300,
   "All Night": 480,
 };
 
@@ -124,10 +107,43 @@ export default function CreateEventPage() {
     duration: "1h",
     maxAttendees: "10",
   });
+  // The host's gender scopes the hostel dropdown. Fetched once on mount.
+  const [userGender, setUserGender] = useState<"MALE" | "FEMALE" | null>(null);
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return;
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+      try {
+        const res = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!active) return;
+        if (res.ok) {
+          const me = await res.json();
+          setUserGender(me?.gender ?? null);
+        }
+      } catch {
+        // ignore — the gender filter is best-effort
+      } finally {
+        if (active) setIsUserLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   const currentStep = steps[step];
   const isFirstStep = step === 0;
   const isLastStep = step === steps.length - 1;
+  const allowedHostels = getHostelsForGender(userGender);
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setError("");
@@ -146,7 +162,9 @@ export default function CreateEventPage() {
       case "eventName":
         return form.eventName.trim().length >= 3 ? "" : "Event name must be at least 3 characters.";
       case "hostel":
-        return hostels.includes(form.hostel) ? "" : "Please select a hostel.";
+        if (!form.hostel) return "Please select a hostel.";
+        if (!allowedHostels.includes(form.hostel)) return "Please select a hostel.";
+        return "";
       case "floorRoom":
         if (!Number.isInteger(Number(form.floor)) || Number(form.floor) < 0) {
           return "Floor must be a whole number.";
@@ -200,7 +218,11 @@ export default function CreateEventPage() {
         maxAttendees: Math.max(2, Number.parseInt(form.maxAttendees, 10) || 2),
       });
 
-      router.push(`/events/${event.id}`);
+      // Use replace instead of push so the create form is removed from
+      // the history stack. The user lands on the event detail page, and
+      // pressing back returns to wherever they came from (typically
+      // /events or /), not back into the create wizard.
+      router.replace(`/events/${event.id}`);
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -231,19 +253,31 @@ export default function CreateEventPage() {
         );
       case "hostel":
         return (
-          <div className="relative">
-            <select
-              value={form.hostel}
-              onChange={(e) => updateField("hostel", e.target.value)}
-              className="w-full bg-[#16161A] border border-zinc-800 rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-all appearance-none text-white focus:border-[#9D7BDE] cursor-pointer"
-            >
-              <option value="" disabled hidden>{currentStep.placeholder}</option>
-              {hostels.map((hostel) => (
-                <option key={hostel} value={hostel}>
-                  Hostel {hostel}
+          <div className="space-y-2">
+            <div className="relative">
+              <select
+                value={form.hostel}
+                onChange={(e) => updateField("hostel", e.target.value)}
+                disabled={!isUserLoaded || allowedHostels.length === 0}
+                className="w-full bg-[#16161A] border border-zinc-800 rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-all appearance-none text-white focus:border-[#9D7BDE] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="" disabled hidden>
+                  {currentStep.placeholder}
                 </option>
-              ))}
-            </select>
+                {allowedHostels.map((hostel) => (
+                  <option key={hostel} value={hostel}>
+                    {hostel}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {userGender && (
+              <p className="text-[11px] text-white/40 font-medium">
+                {userGender === "MALE"
+                  ? "Boys' hostels only — your event will only be visible to boys."
+                  : "Girls' hostels only — your event will only be visible to girls."}
+              </p>
+            )}
           </div>
         );
       case "floorRoom":
@@ -279,7 +313,7 @@ export default function CreateEventPage() {
       case "duration":
         return (
           <div className="flex flex-wrap gap-3">
-            {["30m", "1h", "2h", "3h", "All Night"].map((option) => {
+            {["30m", "1h", "1h 30m", "2h", "3h", "5h", "All Night"].map((option) => {
               const active = form.duration === option;
               return (
                 <button

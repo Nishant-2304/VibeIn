@@ -8,6 +8,7 @@ import {
   Edit3, 
   LogOut, 
   MapPin, 
+  Star,
   Ticket, 
   Zap 
 } from "lucide-react";
@@ -70,6 +71,11 @@ export default function ProfilePage() {
     router.push("/login");
   };
 
+  const formatRating = (value: unknown) => {
+    const rating = typeof value === "number" ? value : 0;
+    return rating.toFixed(1);
+  };
+
   if (loading) {
     return (
       <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans">
@@ -123,30 +129,32 @@ export default function ProfilePage() {
       </div>
 
       {/* ================= STATS ROW ================= */}
-      <div className="w-full flex gap-3 mb-8 z-10">
-        <div className="flex-1 bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
-          <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1">
-            Events Joined
-          </span>
-          <span 
-            style={{ fontFamily: "'Jaro', sans-serif" }} 
-            className="text-3xl font-black text-[#b594e6]"
-          >
-            {profile?.eventsAttended ?? 0}
-          </span>
-        </div>
+      <div className="w-full grid grid-cols-2 gap-3 mb-8 z-10">
+        <ProfileStatBox
+          label="Events Joined"
+          value={profile?.eventsAttended ?? 0}
+          valueClassName="text-[#b594e6]"
+        />
 
-        <div className="flex-1 bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
-          <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1">
-            Events Hosted
-          </span>
-          <span 
-            style={{ fontFamily: "'Jaro', sans-serif" }} 
-            className="text-3xl font-black text-[#f5c242]"
-          >
-            {profile?.eventsHosted ?? 0}
-          </span>
-        </div>
+        <ProfileStatBox
+          label="Events Hosted"
+          value={profile?.eventsHosted ?? 0}
+          valueClassName="text-[#f5c242]"
+        />
+
+        <ProfileStatBox
+          label="Participant Rating"
+          value={formatRating(profile?.participantRating)}
+          valueClassName="text-[#3d8ba8]"
+          icon={<Star className="h-5 w-5 fill-current" />}
+        />
+
+        <ProfileStatBox
+          label="Host Rating"
+          value={formatRating(profile?.hostRating)}
+          valueClassName="text-[#d95284]"
+          icon={<Star className="h-5 w-5 fill-current" />}
+        />
       </div>
 
       {/* ================= ACCOUNT SETTINGS CLUSTER ================= */}
@@ -181,6 +189,33 @@ export default function ProfilePage() {
       </div>
 
     </main>
+  );
+}
+
+function ProfileStatBox({
+  label,
+  value,
+  valueClassName,
+  icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueClassName: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-[104px] bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
+      <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1 text-center leading-tight">
+        {label}
+      </span>
+      <span
+        style={{ fontFamily: "'Jaro', sans-serif" }}
+        className={`flex items-center gap-1 text-3xl font-black ${valueClassName}`}
+      >
+        {value}
+        {icon}
+      </span>
+    </div>
   );
 }
 

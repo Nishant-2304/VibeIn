@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Clock, Users, MoreVertical } from "lucide-react";
+import { Clock, MoreVertical, Users } from "lucide-react";
+
+type EventAvatar = {
+  id: string;
+  name: string;
+  pfp?: string | null;
+};
 
 export interface MyEventCardProps {
   id: string;
@@ -12,13 +18,14 @@ export interface MyEventCardProps {
   actionText: "Manage" | "Broadcast" | "View Details";
   /**
    * Optional override for the action button's destination. When omitted, the
-   * card itself is the only click target (→ /events/[id]).
+   * card itself is the only click target.
    */
   actionHref?: string;
   bgColor: string;
-  avatars?: string[];
-  extraCount?: number;
+  avatars?: EventAvatar[];
 }
+
+const VISIBLE_AVATAR_COUNT = 4;
 
 export default function MyEventCard({
   id,
@@ -29,10 +36,11 @@ export default function MyEventCard({
   actionText,
   actionHref,
   bgColor,
-  avatars = ["/avatar1.png", "/avatar2.png"],
-  extraCount = 10,
+  avatars = [],
 }: MyEventCardProps) {
   const router = useRouter();
+  const visibleAvatars = avatars.slice(0, VISIBLE_AVATAR_COUNT);
+  const extraCount = Math.max(0, avatars.length - visibleAvatars.length);
 
   const handleActionClick = (e: React.MouseEvent) => {
     // The card itself is clickable, so always block the bubbling navigation.
@@ -89,13 +97,9 @@ export default function MyEventCard({
       {/* Bottom */}
       <div className="flex items-center justify-between">
         <div className="flex items-center -space-x-2 overflow-hidden pl-1">
-          <div className="inline-block w-8 h-8 rounded-full ring-2 ring-black/10 bg-neutral-800 text-white flex items-center justify-center text-xs font-bold shrink-0">
-            🧑‍🎤
-          </div>
-
-          <div className="inline-block w-8 h-8 rounded-full ring-2 ring-black/10 bg-neutral-700 text-white flex items-center justify-center text-xs font-bold shrink-0">
-            👩‍🚀
-          </div>
+          {visibleAvatars.map((avatar, index) => (
+            <AvatarBubble key={avatar.id} avatar={avatar} index={index} />
+          ))}
 
           {extraCount > 0 && (
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-black/80 text-white text-[10px] font-black ring-2 ring-black/10 shrink-0">
@@ -113,5 +117,43 @@ export default function MyEventCard({
         </button>
       </div>
     </article>
+  );
+}
+
+function AvatarBubble({
+  avatar,
+  index,
+}: {
+  avatar: EventAvatar;
+  index: number;
+}) {
+  const pfp = avatar.pfp?.trim();
+  const label = avatar.name?.trim() || "User";
+  const initial = label.charAt(0).toUpperCase();
+  const isImage =
+    !!pfp &&
+    (pfp.startsWith("/") ||
+      pfp.startsWith("http://") ||
+      pfp.startsWith("https://") ||
+      pfp.startsWith("data:image/"));
+  const fallbackColors = [
+    "bg-neutral-800",
+    "bg-neutral-700",
+    "bg-[#231b2e]",
+    "bg-[#18262b]",
+  ];
+
+  return (
+    <div
+      className={`flex h-8 w-8 items-center justify-center overflow-hidden rounded-full text-xs font-bold text-white ring-2 ring-black/10 shrink-0 ${fallbackColors[index % fallbackColors.length]}`}
+      title={label}
+      aria-label={label}
+    >
+      {isImage ? (
+        <img src={pfp} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="leading-none">{pfp || initial}</span>
+      )}
+    </div>
   );
 }

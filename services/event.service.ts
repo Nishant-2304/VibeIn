@@ -18,6 +18,10 @@ type EventFilters = {
   hostel?: string | null;
   floor?: string | null;
   status?: string | null;
+  // Optional whitelist of hostels to scope the query to (e.g. derived
+  // from the viewer's gender). When provided and non-empty, only events
+  // whose `hostel_name` is in the list are returned.
+  hostels?: string[] | null;
 };
 
 type Actor = {
@@ -123,6 +127,13 @@ export class EventService {
         { eventname: { contains: q, mode: "insensitive" } },
         { event_description: { contains: q, mode: "insensitive" } },
       ];
+    }
+
+    // Gender-derived hostel whitelist. Composes with the existing
+    // `hostel` single-name filter (if any) so callers can still narrow
+    // by both. Prisma's where input combines top-level fields with AND.
+    if (filters.hostels && filters.hostels.length > 0) {
+      where.hostel_name = { in: filters.hostels };
     }
 
     const [events, total] = await EventRepository.findAll(where, pagination);

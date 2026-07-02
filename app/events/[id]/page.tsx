@@ -150,6 +150,16 @@ export default function EventDetailPage({
   const manageAttendeesBgColor = "#3d8ba8";
   
   async function register() {
+    // Frontend guard: the event host must never be able to register for
+    // their own event. The host controls (Manage Attendees, Live Controls)
+    // are shown in their place. This is a defensive check on top of the
+    // conditional render below, in case the host relationship is computed
+    // after the button mounts.
+    if (isHost) {
+      setError("Hosts cannot register for their own event.");
+      return;
+    }
+
     setRegistering(true);
     setError(null);
     setNotice(null);
@@ -380,10 +390,16 @@ export default function EventDetailPage({
             </p>
           )}
 
-          {/* ================= PARTICIPANT CONTROLS ================= */}
+          {/* ================= PARTICIPANT CONTROLS =================
+              Hidden for the host. The host sees the Manage Attendees card
+              and Live Controls below instead — the host must never be
+              able to register for their own event. */}
           {!isHost && (
             <div className="mt-8 flex flex-col gap-3">
-              {/* Register/Unregister Button */}
+              {/* Register/Unregister Button.
+                  Disabled (and the event is treated as "closed") when the
+                  event is COMPLETED or CANCELLED. The host never sees
+                  this block because of the surrounding !isHost gate. */}
               <button
                 type="button"
                 onClick={() => void (isRegistered ? unregister() : register())}
@@ -404,22 +420,52 @@ export default function EventDetailPage({
                 <Zap className="h-5 w-5 stroke-[2.5]" />
               </button>
 
-              {/* Submit Review Button (Visible if user is Registered or Attended) */}
-              {(attendanceStatus === "REGISTERED" || attendanceStatus === "ATTENDED") && (
-                <button
-                  type="button"
-                  disabled={event.status !== "COMPLETED"}
-                  onClick={() => router.push(`/events/${params.id}/reviews`)}
-                  className={`flex h-14 w-full items-center justify-center gap-2 rounded-2xl font-display font-black text-xl tracking-wider transition-all shadow-md ${
-                    event.status === "COMPLETED"
-                      ? "bg-[#1e1e1e] hover:bg-white/10 text-white border border-white/10 active:scale-[0.99] cursor-pointer"
-                      : "bg-white/5 text-white/30 border border-white/5 cursor-not-allowed"
-                  }`}
-                >
-                  Submit Review
-                  <Pencil className="h-5 w-5 stroke-[2.5]" />
-                </button>
-              )}
+              {/* Review eligibility:
+                  - Show the Submit Review button only for ATTENDED
+                    participants once the event is COMPLETED.
+                  - REGISTERED (event already COMPLETED): the host has not
+                    marked attendance yet. Show a soft info message and
+                    no clickable button.
+                  - NO_SHOW or CANCELLED: not eligible. Show why.
+                  - Event not COMPLETED: show a soft info message
+                    ("Reviews open once the event is completed") so the
+                    user understands when they can review. */}
+              {event.status === "COMPLETED" &&
+                (attendanceStatus === "REGISTERED" ? (
+                  <div
+                    role="status"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 text-center text-sm font-semibold text-amber-300"
+                  >
+                    Attendance is pending. The host has not marked your attendance yet.
+                  </div>
+                ) : attendanceStatus === "NO_SHOW" || attendanceStatus === "CANCELLED" ? (
+                  <div
+                    role="status"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-center text-sm font-semibold text-white/60"
+                  >
+                    Only attended participants can submit reviews.
+                  </div>
+                ) : attendanceStatus === "ATTENDED" ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/events/${params.id}/reviews`)}
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#1e1e1e] hover:bg-white/10 text-white border border-white/10 font-display font-black text-xl tracking-wider transition-all active:scale-[0.99] shadow-md cursor-pointer"
+                  >
+                    Submit Review
+                    <Pencil className="h-5 w-5 stroke-[2.5]" />
+                  </button>
+                ) : null)}
+
+              {event.status !== "COMPLETED" &&
+                (attendanceStatus === "REGISTERED" ||
+                  attendanceStatus === "ATTENDED") && (
+                  <div
+                    role="status"
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 text-center text-sm font-semibold text-white/60"
+                  >
+                    Reviews open once the event is completed.
+                  </div>
+                )}
             </div>
           )}
 
@@ -528,18 +574,20 @@ export default function EventDetailPage({
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        disabled={statusUpdating}
-                        onClick={() => {
-                          if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
-                            void updateEventStatus("CANCELLED");
-                          }
-                        }}
-                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
-                      >
-                        Cancel Event
-                      </button>
+                      {event.status === "UPCOMING" && (
+                        <button
+                          type="button"
+                          disabled={statusUpdating}
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
+                              void updateEventStatus("CANCELLED");
+                            }
+                          }}
+                          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
+                        >
+                          Cancel Event
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

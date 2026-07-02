@@ -302,6 +302,15 @@ export type MyEventItem = {
   max_attendees: number;
   host: { id: string; username: string };
   _count?: { participants?: number };
+  participants?: Array<{
+    id: string;
+    attendance_status?: string;
+    user: {
+      id: string;
+      username: string;
+      pfp?: string | null;
+    };
+  }>;
   attendanceStatus?: string;
 };
 

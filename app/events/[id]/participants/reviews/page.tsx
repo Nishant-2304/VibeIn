@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Star } from "lucide-react";
 import {
   apiErrorMessage,
@@ -13,6 +14,7 @@ import {
 type Draft = { rating: number; comment: string };
 
 export default function SubmitParticipantReviewsPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -64,6 +66,7 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
         comment: draft.comment.trim() || undefined,
       });
       setSubmitted((current) => ({ ...current, [userId]: true }));
+      router.replace(`/events/${params.id}`);
     } catch (cause) {
       setErrors((current) => ({ ...current, [userId]: apiErrorMessage(cause) }));
     } finally {

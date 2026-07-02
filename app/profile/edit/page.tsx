@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
-import { DEFAULT_PFP_OPTIONS, HOSTEL_OPTIONS } from "../../../lib/constants";
+import { DEFAULT_PFP_OPTIONS, getHostelsForGender } from "../../../lib/constants";
 
 interface FormData {
   pfp: string;
@@ -209,25 +209,15 @@ export default function EditProfilePage() {
             </p>
           </div>
 
-          {/* Gender */}
+          {/* Gender (Read-only — locked after onboarding, like College) */}
           <div className="flex flex-col space-y-2 pt-2">
             <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Hostel Type</label>
-            <div className="grid grid-cols-2 gap-3">
-              {(["Boy", "Girl"] as const).map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => updateField("gender", g)}
-                  className={`py-3.5 rounded-xl border text-sm font-bold transition-all ${
-                    formData.gender === g
-                      ? "bg-[#c8aaf5]/10 border-[#c8aaf5] text-[#c8aaf5]"
-                      : "bg-[#1e1e1e] border-white/10 text-gray-400 hover:bg-white/5"
-                  }`}
-                >
-                  {g}s Hostel
-                </button>
-              ))}
+            <div className="w-full bg-[#1e1e1e]/50 border border-white/5 rounded-xl px-4 py-3.5 text-sm text-gray-500 cursor-not-allowed">
+              {formData.gender === "Boy" ? "Boys Hostel" : formData.gender === "Girl" ? "Girls Hostel" : "—"}
             </div>
+            <p className="text-[10px] text-gray-500 font-medium">
+              * Hostel type cannot be changed after initial setup.
+            </p>
           </div>
 
           {/* Hostel Block */}
@@ -246,7 +236,13 @@ export default function EditProfilePage() {
               <option value="" disabled hidden>
                 {!formData.gender ? "Select Hostel Type first" : "Choose Block"}
               </option>
-              {HOSTEL_OPTIONS.map((block) => (
+              {getHostelsForGender(
+                formData.gender === "Boy"
+                  ? "MALE"
+                  : formData.gender === "Girl"
+                  ? "FEMALE"
+                  : null
+              ).map((block) => (
                 <option key={block} value={block}>{block}</option>
               ))}
             </select>

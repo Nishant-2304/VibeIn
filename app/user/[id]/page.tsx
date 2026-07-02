@@ -227,17 +227,9 @@ export default function PublicProfilePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="p-2.5 text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition active:scale-95 cursor-pointer"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5 stroke-[2.5]" />
-          </button>
-
           {/* Mini User Avatar */}
           <div className="w-8 h-8 rounded-full bg-neutral-700 border border-white/20 flex items-center justify-center text-xs overflow-hidden">
-            {profile.pfp || "😎"}
+            {profile.pfp}
           </div>
         </div>
       </div>
@@ -245,7 +237,7 @@ export default function PublicProfilePage() {
       {/* ================= HERO AVATAR & INFO ================= */}
       <div className="relative mb-3 z-10 mt-2">
         <div className="w-28 h-28 rounded-full bg-neutral-800 border-2 border-[#b594e6] overflow-hidden shadow-2xl flex items-center justify-center text-5xl">
-          {profile.pfp || "😎"}
+          {profile.pfp}
         </div>
         {/* Verified Host Badge */}
         <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#9474cc] text-white flex items-center justify-center shadow-md border-2 border-[#121212]">
@@ -268,17 +260,20 @@ export default function PublicProfilePage() {
       {/* ================= RATINGS ROW ================= */}
       <div className="w-full flex gap-3 mb-4 z-10">
         {/* Host Rating Card */}
-        <div className="flex-1 bg-[#231b2e] border border-[#9474cc]/30 rounded-2xl p-4 flex flex-col justify-between shadow-lg h-28">
-          <div>
-            <span className="text-[10px] font-bold tracking-wider text-gray-300 uppercase block mb-1">
+        <div className="flex-1 min-h-[104px] bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1 text-center leading-tight">
               Host Rating
             </span>
-            <div className="flex items-center gap-1 text-white font-black text-xl">
+            <div
+              style={{ fontFamily: "'Jaro', sans-serif" }}
+              className="flex items-center gap-1 text-3xl font-black text-[#d95284]"
+            >
               <span>{(profile.hostRating ?? 0).toFixed(1)}</span>
-              <Star className="w-4 h-4 fill-[#b594e6] text-[#b594e6]" />
+              <Star className="h-5 w-5 fill-current" />
             </div>
           </div>
-          <p className="text-gray-400 text-xs italic line-clamp-1">
+          <p className="mt-2 text-gray-400 text-xs italic line-clamp-1">
             {hostRatingCount > 0
               ? `${hostRatingCount} review${hostRatingCount === 1 ? "" : "s"}`
               : "No reviews yet"}
@@ -286,17 +281,20 @@ export default function PublicProfilePage() {
         </div>
 
         {/* Guest Rating Card */}
-        <div className="flex-1 bg-[#18262b] border border-[#3d8ba8]/30 rounded-2xl p-4 flex flex-col justify-between shadow-lg h-28">
-          <div>
-            <span className="text-[10px] font-bold tracking-wider text-gray-300 uppercase block mb-1">
+        <div className="flex-1 min-h-[104px] bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1 text-center leading-tight">
               Guest Rating
             </span>
-            <div className="flex items-center gap-1 text-white font-black text-xl">
+            <div
+              style={{ fontFamily: "'Jaro', sans-serif" }}
+              className="flex items-center gap-1 text-3xl font-black text-[#3d8ba8]"
+            >
               <span>{(profile.participantRating ?? 0).toFixed(1)}</span>
-              <CheckCircle2 className="w-4 h-4 text-[#3d8ba8]" />
+              <Star className="h-5 w-5 fill-current" />
             </div>
           </div>
-          <p className="text-gray-400 text-xs font-medium line-clamp-1">
+          <p className="mt-2 text-gray-400 text-xs font-medium line-clamp-1">
             {participantRatingCount > 0
               ? `${participantRatingCount} review${participantRatingCount === 1 ? "" : "s"}`
               : "No reviews yet"}

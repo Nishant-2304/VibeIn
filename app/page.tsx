@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { AlertCircle, Bell, ChevronRight, Loader2, Plus, X, Check } from "lucide-react";
+import { AlertCircle, ChevronRight, Loader2, Plus, X, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";

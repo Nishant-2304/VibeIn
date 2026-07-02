@@ -9,6 +9,8 @@ import {
   eventApi,
   type EventDetail,
 } from "../../../../lib/client-api";
+import { getHostelsForGender } from "../../../../lib/constants";
+import { createClient } from "../../../../lib/supabase/client";
 
 type FormState = {
   name: string;
@@ -76,6 +78,37 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The host's gender scopes the hostel dropdown. Fetched once on mount.
+  const [userGender, setUserGender] = useState<"MALE" | "FEMALE" | null>(null);
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return;
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+      try {
+        const res = await fetch("/api/users/me", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (active && res.ok) {
+          const me = await res.json();
+          setUserGender(me?.gender ?? null);
+        }
+      } catch {
+        // ignore — the gender filter is best-effort
+      } finally {
+        if (active) setIsUserLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   useEffect(() => {
     let active = true;
@@ -95,6 +128,23 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       active = false;
     };
   }, [params.id]);
+
+  const allowedHostels = getHostelsForGender(userGender);
+
+  // If the existing event has a legacy hostel value that's not in the
+  // host's gender list, normalize it to the first allowed hostel and
+  // treat that as the original value. This keeps `isDirty` false for
+  // legacy data (no PATCH required on load) and lets the user pick a
+  // new hostel if they actually want to change it.
+  useEffect(() => {
+    if (!isUserLoaded || !original) return;
+    if (allowedHostels.length === 0) return;
+    if (original.hostel && !allowedHostels.includes(original.hostel)) {
+      const next = { ...original, hostel: allowedHostels[0] };
+      setOriginal(next);
+      setForm(next);
+    }
+  }, [isUserLoaded, original, allowedHostels]);
 
   function update(key: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -124,6 +174,10 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     }
     if (!Number.isInteger(floor) || floor < 0) {
       setError("Enter a valid floor number.");
+      return;
+    }
+    if (!form.hostel || !allowedHostels.includes(form.hostel)) {
+      setError("Select a valid hostel for your gender.");
       return;
     }
     if (!Number.isInteger(maxAttendees) || maxAttendees < 2) {
@@ -198,7 +252,26 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
             <textarea rows={5} value={form.description} onChange={(e) => update("description", e.target.value)} className={fieldClass} />
           </label>
           <label className="block">Hostel
-            <input required value={form.hostel} onChange={(e) => update("hostel", e.target.value)} className={fieldClass} />
+            <select
+              required
+              value={form.hostel}
+              disabled={!isUserLoaded || allowedHostels.length === 0}
+              onChange={(e) => update("hostel", e.target.value)}
+              className={fieldClass}
+            >
+              {allowedHostels.map((hostel) => (
+                <option key={hostel} value={hostel}>
+                  {hostel}
+                </option>
+              ))}
+            </select>
+            {userGender && (
+              <span className="block text-[11px] text-white/40 font-medium mt-1">
+                {userGender === "MALE"
+                  ? "Boys' hostels only — your event will only be visible to boys."
+                  : "Girls' hostels only — your event will only be visible to girls."}
+              </span>
+            )}
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label>Floor<input required type="number" min={0} value={form.floor} onChange={(e) => update("floor", e.target.value)} className={fieldClass} /></label>

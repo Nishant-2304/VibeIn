@@ -245,6 +245,25 @@ export class UserService {
       where: { host_id: userId },
       orderBy: { event_time: "desc" },
       include: {
+        participants: {
+          where: {
+            attendance_status: {
+              not: "CANCELLED",
+            },
+          },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            attendance_status: true,
+            user: {
+              select: {
+                id: true,
+                username: true,
+                pfp: true,
+              },
+            },
+          },
+        },
         _count: {
           select: { participants: true },
         },
@@ -260,6 +279,25 @@ export class UserService {
         event: {
           include: {
             host: true,
+            participants: {
+              where: {
+                attendance_status: {
+                  not: "CANCELLED",
+                },
+              },
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                attendance_status: true,
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pfp: true,
+                  },
+                },
+              },
+            },
             _count: {
               select: { participants: true },
             },
