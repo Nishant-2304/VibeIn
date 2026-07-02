@@ -10,6 +10,8 @@ export interface EventCardProps {
   time: string;
   bgColor: string;
   onJoin?: (id: string, e: React.MouseEvent) => void;
+  joinLabel?: string;
+  statusLabel?: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 }
 
 export default function EventCard({
@@ -21,6 +23,8 @@ export default function EventCard({
   time,
   bgColor,
   onJoin,
+  joinLabel = "Join!",
+  statusLabel,
 }: EventCardProps) {
   // Maintained your rigid h-[210px] for horizontal carousel stability
   const cardClassName =
@@ -51,6 +55,11 @@ export default function EventCard({
 
       {/* ================= TOP LEFT: Title & Host ================= */}
       <div className="flex flex-col z-10 pr-20 shrink-0 mt-1">
+        {statusLabel && (
+          <span className="mb-2 w-fit rounded-full bg-black/25 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white backdrop-blur-sm">
+            {statusLabel.toLowerCase()}
+          </span>
+        )}
         <h3 className="font-display text-2xl font-black leading-none tracking-wide truncate">
           {title}
         </h3>
@@ -82,13 +91,13 @@ export default function EventCard({
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
-              if (id && onJoin) {
+              if (id && onJoin && joinLabel === "Join!") {
                 onJoin(id, e);
               }
             }}
             className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
           >
-            Join!
+            {joinLabel}
           </button>
         </div>
       </div>

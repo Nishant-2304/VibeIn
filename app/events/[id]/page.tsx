@@ -514,14 +514,14 @@ export default function EventDetailPage({
               {/* Start/Finish/Cancel Controls */}
               {(event.status === "UPCOMING" || event.status === "ACTIVE") && (
                 <div 
-                  className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden border border-white/5 bg-[#1e1e1e]"
+                  className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden border border-[#9474cc]/30 bg-[#231b2e]"
                 >
                   {/* Top Right Ribbon (Dynamic Event Status) */}
                   <div
-                    className="absolute top-0 right-0 bg-white h-[44px] flex items-center justify-end pr-5 pl-8 rounded-tr-[24px] z-10 shadow-sm"
+                    className="absolute top-0 right-0 bg-[#c8aaf5] h-[44px] flex items-center justify-end pr-5 pl-8 rounded-tr-[24px] z-10 shadow-sm"
                     style={{ clipPath: "polygon(0% 0, 100% 0, 100% 100%, 25% 100%)" }}
                   >
-                    <div className="flex items-baseline gap-1 mt-1 text-[#1e1e1e]">
+                    <div className="flex items-baseline gap-1 mt-1 text-[#2c124d]">
                       <span className="font-display text-lg font-black leading-none tracking-wide">
                         {event.status}
                       </span>
@@ -530,7 +530,7 @@ export default function EventDetailPage({
 
                   {/* Top Left: Title Structure */}
                   <div className="flex flex-col z-10 relative">
-                    <span className="text-[11px] font-bold tracking-wider text-gray-400 uppercase mb-1 drop-shadow-sm">
+                    <span className="text-[11px] font-bold tracking-wider text-[#c8aaf5] uppercase mb-1 drop-shadow-sm">
                       Action Center
                     </span>
                     <h3 className="font-display text-2xl font-black leading-none tracking-wide truncate">
@@ -540,7 +540,7 @@ export default function EventDetailPage({
 
                   <div className="mt-5 relative z-10">
                     {/* The signature partial divider */}
-                    <div className="w-1/3 h-px bg-white/10 mb-5" />
+                    <div className="w-1/3 h-px bg-[#c8aaf5]/30 mb-5" />
                     
                     <div className="flex flex-col gap-3">
                       {event.status === "UPCOMING" && (
@@ -549,7 +549,7 @@ export default function EventDetailPage({
                             type="button"
                             disabled={!canStartEvent || statusUpdating}
                             onClick={() => void updateEventStatus("ACTIVE")}
-                            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#10b981] hover:bg-[#059669] font-display font-black text-xl tracking-wider text-black disabled:opacity-40 disabled:grayscale transition-all active:scale-[0.99] shadow-[0_4px_20px_rgba(16,185,129,0.2)]"
+                            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#3d8ba8] hover:bg-[#347992] font-display font-black text-xl tracking-wider text-white disabled:opacity-40 disabled:grayscale transition-all active:scale-[0.99] shadow-[0_4px_20px_rgba(61,139,168,0.25)]"
                           >
                             {statusUpdating ? "Starting..." : "Start Event"}
                             <Zap className="h-5 w-5 stroke-[2.5]" />
@@ -583,7 +583,7 @@ export default function EventDetailPage({
                               void updateEventStatus("CANCELLED");
                             }
                           }}
-                          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
+                          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#d95284]/45 bg-[#d95284]/15 hover:bg-[#d95284]/25 font-display font-black text-xl tracking-wider text-[#ff8fb5] disabled:opacity-40 transition-all active:scale-[0.99]"
                         >
                           Cancel Event
                         </button>

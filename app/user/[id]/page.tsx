@@ -397,13 +397,13 @@ export default function PublicProfilePage() {
       {/* ================= BOTTOM ACTION CTAS ================= */}
       <div className="w-full space-y-3 z-10 mt-auto">
         {/* Primary Message CTA */}
-        <button
-          type="button"
+        <Link
+          href="/chat"
           className="w-full py-4 rounded-2xl bg-[#c8aaf5] hover:bg-[#b894ec] text-[#2c124d] font-bold text-base shadow-[0_4px_20px_rgba(200,170,245,0.3)] transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
         >
           <MessageSquare className="w-5 h-5 stroke-[2.5]" />
           <span>Send a Message</span>
-        </button>
+        </Link>
 
         {/* Secondary Report CTA */}
         {/*<button

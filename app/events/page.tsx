@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, Plus, Search, SlidersHorizontal, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../../components/event/EventCard";
-import { eventApi, EventListItem, apiErrorMessage } from "../../lib/client-api";
+import { eventApi, EventListItem, apiErrorMessage, userApi } from "../../lib/client-api";
 
 // Card color tokens come from global.css (@theme). The order is deterministically
 // shuffled once at module load so it looks random but stays stable across renders
@@ -42,6 +42,22 @@ function shuffledStableOrder(seed: number) {
 
 const EVENTS_FEED_COLOR_ORDER = shuffledStableOrder(0x7e8f9a0b);
 
+function sortEventsForFeed(items: EventListItem[]) {
+  const statusRank: Record<EventListItem["status"], number> = {
+    ACTIVE: 0,
+    UPCOMING: 1,
+    COMPLETED: 2,
+    CANCELLED: 3,
+  };
+
+  return [...items].sort((a, b) => {
+    const statusDiff = statusRank[a.status] - statusRank[b.status];
+    if (statusDiff !== 0) return statusDiff;
+
+    return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
+  });
+}
+
 function formatScheduledAt(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -74,7 +90,8 @@ function formatScheduledAt(iso: string) {
 function toCardProps(
   event: EventListItem,
   index: number,
-  onJoin: (id: string, e: React.MouseEvent) => void
+  onJoin: (id: string, e: React.MouseEvent) => void,
+  isRegistered: boolean
 ): EventCardProps {
   return {
     id: event.id,
@@ -85,6 +102,8 @@ function toCardProps(
     time: formatScheduledAt(event.scheduledAt),
     bgColor: EVENTS_FEED_COLOR_ORDER[index % EVENTS_FEED_COLOR_ORDER.length],
     onJoin,
+    joinLabel: isRegistered ? "Registered" : "Join!",
+    statusLabel: event.status,
   };
 }
 
@@ -94,6 +113,7 @@ export default function EventsFeedPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [events, setEvents] = useState<EventListItem[]>([]);
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [registeredEventName, setRegisteredEventName] = useState<string | null>(null);
 
@@ -123,6 +143,37 @@ export default function EventsFeedPage() {
     setPage(1);
   }, [debouncedQuery]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    userApi
+      .getMyEvents({ role: "attending" })
+      .then((response) => {
+        if (cancelled) return;
+        setRegisteredEventIds(
+          new Set(
+            (response.attending ?? [])
+              .filter((event) => {
+                const status =
+                  event.attendanceStatus ??
+                  (event as { attendance_status?: string }).attendance_status;
+                return status !== "CANCELLED";
+              })
+              .map((event) => event.id)
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRegisteredEventIds(new Set());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Fetch a page of events.
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +195,7 @@ export default function EventsFeedPage() {
         if (cancelled) return;
 
         setEvents((prev) =>
-          append ? [...prev, ...response.events] : response.events
+          sortEventsForFeed(append ? [...prev, ...response.events] : response.events)
         );
         setHasMore(response.pagination.hasMore);
         setPage(targetPage);
@@ -182,7 +233,7 @@ export default function EventsFeedPage() {
         limit: PAGE_LIMIT,
       })
       .then((response) => {
-        setEvents((prev) => [...prev, ...response.events]);
+        setEvents((prev) => sortEventsForFeed([...prev, ...response.events]));
         setHasMore(response.pagination.hasMore);
         setPage(next);
       })
@@ -201,6 +252,11 @@ export default function EventsFeedPage() {
       await eventApi.register(eventId);
       const matchedEvent = events.find(evt => evt.id === eventId);
       setRegisteredEventName(matchedEvent?.name || "the event");
+      setRegisteredEventIds((current) => {
+        const next = new Set(current);
+        next.add(eventId);
+        return next;
+      });
       setEvents((prev) =>
         prev.map((evt) =>
           evt.id === eventId
@@ -214,8 +270,11 @@ export default function EventsFeedPage() {
   };
 
   const cardEvents = useMemo(
-    () => events.map((event, idx) => toCardProps(event, idx, handleJoin)),
-    [events, handleJoin]
+    () =>
+      events.map((event, idx) =>
+        toCardProps(event, idx, handleJoin, registeredEventIds.has(event.id))
+      ),
+    [events, handleJoin, registeredEventIds]
   );
 
   return (

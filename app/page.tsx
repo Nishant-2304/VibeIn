@@ -86,6 +86,7 @@ function toCardProps(
     time: formatScheduledAt(event.scheduledAt),
     bgColor: colorOrder[index % colorOrder.length],
     onJoin,
+    statusLabel: event.status,
   };
 }
 

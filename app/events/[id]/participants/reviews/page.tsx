@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Star } from "lucide-react";
+import { LoadingScreen } from "../../../../../components/ui/LoadingScreen";
 import {
   apiErrorMessage,
   eventApi,
@@ -74,6 +75,10 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
     }
   }
 
+  if (loading) {
+    return <LoadingScreen label="Loading participants..." />;
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-md px-5 py-6 pb-10">
@@ -85,7 +90,6 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
           </div>
         </header>
 
-        {loading && <p className="mt-8 text-[#9ca3af]">Loading participants…</p>}
         {pageError && <p role="alert" className="mt-8 text-red-300">{pageError}</p>}
         {!loading && !pageError && registrations.length === 0 && (
           <p className="mt-8 rounded-2xl bg-[#171717] p-4 text-[#9ca3af]">No attended or no-show participants are ready for review.</p>
@@ -105,7 +109,7 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
                     <h2 className="text-lg font-semibold text-white">{registration.user.displayName}</h2>
                     <p className="text-xs font-semibold text-[#a78bfa]">{registration.attendanceStatus === "NO_SHOW" ? "No show" : "Attended"}</p>
                   </div>
-                  <span className="text-xs text-[#9ca3af] font-medium">Community {registration.user.participantRating.toFixed(1)}</span>
+                  <span className="text-xs text-[#9ca3af] font-medium">Guest Rating {registration.user.participantRating.toFixed(1)}</span>
                 </div>
 
                 <div className="mt-4 flex gap-2">

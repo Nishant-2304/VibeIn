@@ -6,8 +6,9 @@ import { Home, Building2, Calendar, MessageSquare, User } from "lucide-react";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const isReviewPage = pathname.includes("/reviews");
 
-  if (pathname === "/login" || pathname === "/onboarding" || (pathname.startsWith("/events/") && pathname !== "/events/create")) return null;
+  if (isReviewPage) return null;
 
   const navItems = [
     { href: "/", icon: Home, label: "Home" },
@@ -18,7 +19,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#121212]/95 backdrop-blur-lg border-t border-white/10 px-6 py-3.5 flex items-center justify-between z-50 shadow-2xl">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#121212]/95 backdrop-blur-lg border-t border-white/10 px-6 py-3.5 flex items-center justify-between z-[80] shadow-2xl">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));

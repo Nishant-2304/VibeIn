@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Send, Star } from "lucide-react";
+import { LoadingScreen } from "../../../../components/ui/LoadingScreen";
 import { createClient } from "../../../../lib/supabase/client";
 import {
   apiErrorMessage,
@@ -212,6 +213,10 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
     }
   }
 
+  if (loading || !eligibilityChecked) {
+    return <LoadingScreen label="Loading event..." />;
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-md px-5 py-6 pb-10">
@@ -222,9 +227,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
           <h1 className="text-[22px] font-extrabold">Submit Review</h1>
         </header>
 
-        {loading || !eligibilityChecked ? (
-          <p className="mt-8 text-[#9ca3af]">Loading event…</p>
-        ) : !event ? (
+        {!event ? (
           <p className="mt-8 text-red-300">{error || "Event not found."}</p>
         ) : alreadySubmitted ? (
           // Brief intermediate state while the redirect runs.
