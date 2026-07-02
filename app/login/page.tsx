@@ -35,13 +35,16 @@ export default function LoginGateScreen() {
 
       {/* ================= VIEW A: FIGMA SPLASH SCREEN ================= */}
       <div
-        className={`absolute inset-0 flex items-center justify-center bg-[#121212] z-30 transition-opacity duration-700 ease-in-out ${isSplash ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        className={`absolute inset-0 flex flex-col items-center justify-center bg-[#121212] z-30 transition-opacity duration-700 ease-in-out ${isSplash ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
       >
         {/* Spelled with a 'V'. Brute-forced to 'Jaro'. Top-to-bottom metallic gradient */}
         <h1 className="font-['Jaro'] text-7xl font-black tracking-normal bg-gradient-to-b from-[#7e52b5] via-[#a87cdb] to-[#e2cbf5] bg-clip-text text-transparent pb-2">
           VibeIn
         </h1>
+        <p className="mt-1 text-sm font-bold uppercase tracking-[0.22em] text-white/35">
+          By EZZ
+        </p>
       </div>
 
 

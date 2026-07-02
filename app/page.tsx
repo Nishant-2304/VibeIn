@@ -6,7 +6,7 @@ import { AlertCircle, ChevronRight, Loader2, Plus, X, Check } from "lucide-react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";
-import { eventApi, userApi, EventListItem, apiErrorMessage } from "../lib/client-api";
+import { ApiError, eventApi, userApi, EventListItem, apiErrorMessage } from "../lib/client-api";
 
 // Card color tokens come from global.css (@theme). Different sections can use
 // different "random-looking" but stable orders. The seed is fixed per section
@@ -92,10 +92,15 @@ function toCardProps(
 
 const EVENTS_PER_PAGE = 2;
 
+function isAuthError(error: unknown) {
+  return error instanceof ApiError && error.status === 401;
+}
+
 export default function HomePage() {
   // Alert Banner State
   const [pendingCount, setPendingCount] = useState(2);
   const [registeredEventName, setRegisteredEventName] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (registeredEventName) {
@@ -221,6 +226,7 @@ export default function HomePage() {
 
   const handleJoin = async (eventId: string, e: React.MouseEvent) => {
     try {
+      setAuthError(null);
       await eventApi.register(eventId);
       const matchedEvent = happeningNow.find(evt => evt.id === eventId) || comingUp.find(evt => evt.id === eventId);
       setRegisteredEventName(matchedEvent?.name || "the event");
@@ -233,6 +239,11 @@ export default function HomePage() {
       setHappeningNow(updateAttendees);
       setComingUp(updateAttendees);
     } catch (err) {
+      if (isAuthError(err)) {
+        setAuthError(apiErrorMessage(err));
+        return;
+      }
+
       alert(apiErrorMessage(err));
     }
   };
@@ -430,6 +441,30 @@ export default function HomePage() {
             >
               <X className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {authError && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="rounded-2xl border border-[#c8aaf5]/30 bg-[#1d1627] p-4 text-white shadow-2xl backdrop-blur-md">
+            <p className="text-sm font-bold text-[#c8aaf5]">Login needed</p>
+            <p className="mt-1 text-xs font-medium text-gray-300">{authError}</p>
+            <div className="mt-3 flex gap-2">
+              <Link
+                href="/login"
+                className="flex-1 rounded-xl bg-[#c8aaf5] px-4 py-2.5 text-center text-sm font-black text-[#2c124d] transition active:scale-[0.98]"
+              >
+                Login
+              </Link>
+              <button
+                type="button"
+                onClick={() => setAuthError(null)}
+                className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/15"
+              >
+                Later
+              </button>
+            </div>
           </div>
         </div>
       )}

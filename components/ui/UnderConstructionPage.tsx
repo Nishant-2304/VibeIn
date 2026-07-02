@@ -25,7 +25,10 @@ export function UnderConstructionPage({
           <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
         </Link>
 
-        <span className="font-display text-3xl font-black tracking-wide text-white">
+        <span
+          style={{ fontFamily: "'Jaro', sans-serif" }}
+          className="text-3xl font-black tracking-wide text-white"
+        >
           VibeIn
         </span>
 
@@ -70,6 +73,10 @@ export function UnderConstructionPage({
           </Link>
         </div>
       </section>
+
+      <p className="relative z-10 mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30">
+        By EZZ
+      </p>
     </main>
   );
 }

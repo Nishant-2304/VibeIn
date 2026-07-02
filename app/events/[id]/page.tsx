@@ -8,10 +8,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Star, Zap, ArrowLeft, Pencil, ArrowRight } from "lucide-react";
 import { createClient } from "../../../lib/supabase/client";
 import {
+  ApiError,
   apiErrorMessage,
   eventApi,
   type EventDetail,
 } from "../../../lib/client-api";
+
+function isAuthError(error: unknown) {
+  return error instanceof ApiError && error.status === 401;
+}
 
 export default function EventDetailPage({
   params,
@@ -27,6 +32,7 @@ export default function EventDetailPage({
   const [statusUpdating, setStatusUpdating] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
+  const [errorNeedsLogin, setErrorNeedsLogin] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -40,6 +46,7 @@ export default function EventDetailPage({
 
     setLoading(true);
     setError(null);
+    setErrorNeedsLogin(false);
 
     const supabase = createClient();
 
@@ -162,6 +169,7 @@ export default function EventDetailPage({
 
     setRegistering(true);
     setError(null);
+    setErrorNeedsLogin(false);
     setNotice(null);
 
     try {
@@ -181,6 +189,7 @@ export default function EventDetailPage({
       setNotice("You’re registered.");
     } catch (cause) {
       setError(apiErrorMessage(cause));
+      setErrorNeedsLogin(isAuthError(cause));
     } finally {
       setRegistering(false);
     }
@@ -189,6 +198,7 @@ export default function EventDetailPage({
   async function unregister() {
     setRegistering(true);
     setError(null);
+    setErrorNeedsLogin(false);
     setNotice(null);
 
     try {
@@ -211,6 +221,7 @@ export default function EventDetailPage({
       setNotice("You’ve unregistered.");
     } catch (cause) {
       setError(apiErrorMessage(cause));
+      setErrorNeedsLogin(isAuthError(cause));
     } finally {
       setRegistering(false);
     }
@@ -221,6 +232,7 @@ export default function EventDetailPage({
   ) {
     setStatusUpdating(true);
     setError(null);
+    setErrorNeedsLogin(false);
     setNotice(null);
 
     try {
@@ -242,6 +254,7 @@ export default function EventDetailPage({
       }
     } catch (cause) {
       setError(apiErrorMessage(cause));
+      setErrorNeedsLogin(isAuthError(cause));
     } finally {
       setStatusUpdating(false);
     }
@@ -385,9 +398,17 @@ export default function EventDetailPage({
           </Link>
 
           {(error || notice) && (
-            <p className={`mt-6 p-3 rounded-xl text-center text-sm font-bold border ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
-              {error || notice}
-            </p>
+            <div className={`mt-6 rounded-xl border p-3 text-center text-sm font-bold ${error ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"}`}>
+              <p>{error || notice}</p>
+              {errorNeedsLogin && (
+                <Link
+                  href="/login"
+                  className="mt-3 inline-flex h-11 min-w-32 items-center justify-center rounded-xl bg-[#c8aaf5] px-5 font-display text-base font-black tracking-wide text-[#2c124d] shadow-[0_4px_20px_rgba(200,170,245,0.25)] transition active:scale-[0.98]"
+                >
+                  Login
+                </Link>
+              )}
+            </div>
           )}
 
           {/* ================= PARTICIPANT CONTROLS =================
