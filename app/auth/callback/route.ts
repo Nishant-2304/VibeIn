@@ -15,14 +15,32 @@ export async function GET(request: Request) {
       data: { user },
     } = await supabase.auth.getUser();
     let isNewUser = false;
-    if (user) {
-      const existingUser = await prisma.user.findUnique({
+    if (user?.email) {
+      const email = user.email.toLowerCase();
+      const existingUser = await prisma.user.findFirst({
         where: {
-          id: user.id,
+          email: {
+            equals: email,
+            mode: "insensitive",
+          },
         },
       });
 
-      if (!existingUser) {
+      if (existingUser) {
+        if (existingUser.id !== user.id) {
+          await prisma.user.update({
+            where: {
+              id: existingUser.id,
+            },
+            data: {
+              id: user.id,
+              email,
+            },
+          });
+        }
+
+        console.log("User already exists");
+      } else {
         const rawUsername = (user.user_metadata.full_name || user.email?.split("@")[0] || "user").trim();
         const baseUsername = rawUsername || "user";
         let username = baseUsername;
@@ -44,15 +62,13 @@ export async function GET(request: Request) {
         await prisma.user.create({
           data: {
             id: user.id,
-            email: user.email!,
+            email,
             username,
           },
         });
 
         console.log("User created");
         isNewUser = true;
-      } else {
-        console.log("User already exists");
       }
     }
     //console.log(user);

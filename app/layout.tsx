@@ -2,7 +2,7 @@ import "./globals.css";
 import { BottomNav } from "../components/layout/Navbar";
 
 export const metadata = {
-  title: "UibeIn - Hostel Grapevine",
+  title: "UibeIn",
   description: "Discover what's happening in your block.",
 };
 
