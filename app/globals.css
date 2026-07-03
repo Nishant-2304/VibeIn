@@ -22,8 +22,27 @@
   --font-sans: "Google Sans", sans-serif;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   background-color: var(--color-vibe-dark);
   color: var(--color-vibe-light);
   font-family: var(--font-sans);
+}
+
+.app-shell {
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+.app-content {
+  min-height: 0;
+}
+
+.app-content .min-h-screen {
+  min-height: 100%;
 }
