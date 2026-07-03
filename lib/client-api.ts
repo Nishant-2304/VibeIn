@@ -155,6 +155,7 @@ export type EventListItem = {
     displayName: string;
     hostRating: number;
   };
+  updatedAt: string;
 };
 
 export type EventListResponse = {

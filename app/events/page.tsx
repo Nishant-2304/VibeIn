@@ -121,6 +121,14 @@ export default function EventsFeedPage() {
   const [page, setPage] = useState(1);
   const [registeredEventName, setRegisteredEventName] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 15000); // Check expiry every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (registeredEventName) {
@@ -280,12 +288,27 @@ export default function EventsFeedPage() {
     }
   };
 
+  // Dynamically filter out completed/cancelled events that are older than 1 hour.
+  // This handles client-side real-time expiry if the user stays on the page.
+  const visibleEvents = useMemo(() => {
+    const now = Date.now();
+    const oneHourMs = 60 * 60 * 1000;
+    return events.filter((event) => {
+      if (event.status === "COMPLETED" || event.status === "CANCELLED") {
+        if (!event.updatedAt) return true; // fallback
+        const updatedTime = new Date(event.updatedAt).getTime();
+        return now - updatedTime <= oneHourMs;
+      }
+      return true;
+    });
+  }, [events, tick]);
+
   const cardEvents = useMemo(
     () =>
-      events.map((event, idx) =>
+      visibleEvents.map((event, idx) =>
         toCardProps(event, idx, handleJoin, registeredEventIds.has(event.id))
       ),
-    [events, handleJoin, registeredEventIds]
+    [visibleEvents, handleJoin, registeredEventIds]
   );
 
   return (

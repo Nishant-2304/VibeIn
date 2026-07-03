@@ -178,4 +178,56 @@ export class EventRepository {
       data: { event_status: "COMPLETED" },
     });
   }
+
+  static async transitionEndedAndDueEvents() {
+    const now = new Date();
+    // 1. Find all UPCOMING or ACTIVE events whose scheduled start time has passed
+    const potentialUpdates = await prisma.event.findMany({
+      where: {
+        event_status: { in: ["UPCOMING", "ACTIVE"] },
+        event_time: { lte: now },
+      },
+      select: {
+        id: true,
+        event_status: true,
+        event_time: true,
+        duration_minutes: true,
+      },
+    });
+
+    if (potentialUpdates.length === 0) return;
+
+    // 2. Identify ended events (ACTIVE or UPCOMING events whose duration has elapsed)
+    const endedIds = potentialUpdates
+      .filter((event) => {
+        const endTime = new Date(event.event_time.getTime() + event.duration_minutes * 60 * 1000);
+        return endTime <= now;
+      })
+      .map((event) => event.id);
+
+    if (endedIds.length > 0) {
+      await prisma.event.updateMany({
+        where: {
+          id: { in: endedIds },
+          event_status: { in: ["UPCOMING", "ACTIVE"] },
+        },
+        data: { event_status: "COMPLETED" },
+      });
+    }
+
+    // 3. Identify due but not ended events (UPCOMING events whose start time has passed but duration has not elapsed)
+    const dueIds = potentialUpdates
+      .filter((event) => event.event_status === "UPCOMING" && !endedIds.includes(event.id))
+      .map((event) => event.id);
+
+    if (dueIds.length > 0) {
+      await prisma.event.updateMany({
+        where: {
+          id: { in: dueIds },
+          event_status: "UPCOMING",
+        },
+        data: { event_status: "ACTIVE" },
+      });
+    }
+  }
 }

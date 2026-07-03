@@ -102,43 +102,63 @@ async function assertUserCanCreateEvent(userId: string) {
 
 export class EventService {
   static async getAllEvents(filters: EventFilters, pagination: PaginationInput) {
+    // First run the database-wide status transition so counts and pagination are accurate
+    await EventRepository.transitionEndedAndDueEvents();
+
     const where: Prisma.EventWhereInput = {};
     const floor = parseInteger(filters.floor, "floor");
     const q = filters.q?.trim();
+
+    const andConditions: Prisma.EventWhereInput[] = [];
 
     if (filters.status) {
       if (!isEventStatus(filters.status)) {
         throw new ValidationError("Invalid event status.");
       }
-
-      where.event_status = filters.status;
+      andConditions.push({ event_status: filters.status });
+    } else {
+      // Default (no status specified): return all UPCOMING and ACTIVE events,
+      // plus COMPLETED/CANCELLED events only if completed/cancelled within the last hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      andConditions.push({
+        OR: [
+          { event_status: { in: [EventStatus.UPCOMING, EventStatus.ACTIVE] } },
+          {
+            event_status: { in: [EventStatus.COMPLETED, EventStatus.CANCELLED] },
+            updatedAt: { gte: oneHourAgo },
+          },
+        ],
+      });
     }
 
     if (filters.hostel) {
-      where.hostel_name = filters.hostel;
+      andConditions.push({ hostel_name: filters.hostel });
     }
 
     if (floor !== undefined) {
-      where.floor = floor;
+      andConditions.push({ floor });
     }
 
     if (q) {
-      where.OR = [
-        { eventname: { contains: q, mode: "insensitive" } },
-        { event_description: { contains: q, mode: "insensitive" } },
-      ];
+      andConditions.push({
+        OR: [
+          { eventname: { contains: q, mode: "insensitive" } },
+          { event_description: { contains: q, mode: "insensitive" } },
+        ],
+      });
     }
 
-    // Gender-derived hostel whitelist. Composes with the existing
-    // `hostel` single-name filter (if any) so callers can still narrow
-    // by both. Prisma's where input combines top-level fields with AND.
     if (filters.hostels && filters.hostels.length > 0) {
-      where.hostel_name = { in: filters.hostels };
+      andConditions.push({ hostel_name: { in: filters.hostels } });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const [events, total] = await EventRepository.findAll(where, pagination);
 
-    // Lazily transition ended events to COMPLETED first
+    // Keep the lazy transition checks on the returned records as a defensive measure
     const completedIds = await this.completeEndedEvents(events);
     if (completedIds.size > 0) {
       for (const event of events) {
@@ -148,8 +168,6 @@ export class EventService {
       }
     }
 
-    // Lazily transition any remaining UPCOMING events whose start time has passed to
-    // ACTIVE. Done in a single bulk update for efficiency.
     const activatedIds = await this.activateDueEvents(events);
     if (activatedIds.size > 0) {
       for (const event of events) {

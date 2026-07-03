@@ -79,6 +79,7 @@ export function formatEventListItem(event: any) {
         event.host.hostReviewsReceived?.map((review: any) => review.rating) ?? []
       ),
     },
+    updatedAt: event.updatedAt,
   };
 }
 
