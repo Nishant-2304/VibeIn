@@ -366,9 +366,9 @@ export default function CreateEventPage() {
   };
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-black px-5 py-6 pb-10">
-        <div className="flex items-center justify-between">
+    <main className="h-full min-h-0 overflow-hidden bg-black text-white">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-md flex-col bg-black px-5 pb-4 pt-6">
+        <div className="flex shrink-0 items-center justify-between">
           <Link href="/events" className="inline-flex items-center gap-2 text-[#b792ea]">
             <ArrowLeft className="h-6 w-6" />
           </Link>
@@ -376,7 +376,7 @@ export default function CreateEventPage() {
           <div className="w-6" />
         </div>
 
-        <div className="mt-6 flex items-center gap-2">
+        <div className="mt-5 flex shrink-0 items-center gap-2">
           {steps.map((item, index) => (
             <span
               key={item.id}
@@ -385,7 +385,7 @@ export default function CreateEventPage() {
           ))}
         </div>
 
-        <section className="mt-8 flex-1">
+        <section className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#b792ea]/40 bg-[#1c1c1e] text-[#b792ea]">
               {step + 1}
@@ -429,7 +429,7 @@ export default function CreateEventPage() {
           )}
         </section>
 
-        <div className="mt-8 grid grid-cols-2 gap-3">
+        <div className="grid shrink-0 grid-cols-2 gap-3 pt-4">
           <button
             type="button"
             onClick={goBack}
