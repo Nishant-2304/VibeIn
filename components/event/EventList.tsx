@@ -4,7 +4,7 @@
  * Supports filtering, sorting, and pagination
  */
 
-import { LoadingScreen } from "../ui/LoadingScreen";
+import { EventListSkeleton } from "../ui/SkeletonScreens";
 
 interface EventListProps {
   events: Array<any>;
@@ -13,7 +13,7 @@ interface EventListProps {
 }
 
 export function EventList({ events, loading, onEventClick }: EventListProps) {
-  if (loading) return <LoadingScreen label="Loading events..." />;
+  if (loading) return <EventListSkeleton />;
 
   return (
     <div className="event-list">

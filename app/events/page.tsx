@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, Plus, Search, SlidersHorizontal, Check, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../../components/event/EventCard";
+import { EventListSkeleton } from "../../components/ui/SkeletonScreens";
 import { ApiError, eventApi, EventListItem, apiErrorMessage, userApi } from "../../lib/client-api";
 
 // Card color tokens come from global.css (@theme). The order is deterministically
@@ -356,10 +357,7 @@ export default function EventsFeedPage() {
       {/* Stacked Horizontal Cards Feed */}
       <div className="flex flex-col gap-4">
         {isInitialLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Loader2 className="w-6 h-6 text-[#9b72cf] animate-spin" />
-            <p className="text-gray-400 text-sm font-medium">Loading events...</p>
-          </div>
+          <EventListSkeleton count={4} />
         ) : error && events.length === 0 ? (
           <div
             role="alert"

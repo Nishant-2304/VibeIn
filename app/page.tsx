@@ -2,10 +2,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { AlertCircle, ChevronRight, Loader2, Plus, X, Check } from "lucide-react";
+import { AlertCircle, ChevronRight, Plus, X, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";
+import { EventCardSkeleton } from "../components/ui/SkeletonScreens";
 import { ApiError, eventApi, userApi, EventListItem, apiErrorMessage } from "../lib/client-api";
 
 // Card color tokens come from global.css (@theme). Different sections can use
@@ -317,8 +318,8 @@ export default function HomePage() {
           className="flex gap-4 overflow-x-auto pb-4 pt-1 -mx-5 px-6 snap-x snap-mandatory scroll-pl-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         >
           {happeningNowLoading ? (
-            <div className="w-full min-h-[210px] flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 text-[#9b72cf] animate-spin" />
+            <div className="w-[82vw] max-w-[320px] shrink-0 snap-center">
+              <EventCardSkeleton showAvatars={false} />
             </div>
           ) : happeningNowError && happeningNow.length === 0 ? (
             <div
@@ -382,9 +383,9 @@ export default function HomePage() {
         {/* Vertical Feed: Render only current page slice */}
         <div className="flex flex-col gap-4 min-h-[380px] transition-opacity duration-200">
           {comingUpLoading ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <Loader2 className="w-6 h-6 text-[#9b72cf] animate-spin" />
-              <p className="text-gray-400 text-xs font-medium">Loading upcoming events...</p>
+            <div className="flex flex-col gap-4">
+              <EventCardSkeleton showAvatars={false} />
+              <EventCardSkeleton showAvatars={false} />
             </div>
           ) : comingUpError && comingUp.length === 0 ? (
             <div

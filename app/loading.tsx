@@ -1,5 +1,5 @@
-import { LoadingScreen } from "../components/ui/LoadingScreen";
+import { RouteSkeleton } from "../components/ui/SkeletonScreens";
 
 export default function Loading() {
-  return <LoadingScreen />;
+  return <RouteSkeleton />;
 }

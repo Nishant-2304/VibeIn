@@ -19,6 +19,7 @@ import {
   type MyEventItem,
   userApi,
 } from "../../../lib/client-api";
+import { EventListSkeleton, ProfileSkeleton } from "../../../components/ui/SkeletonScreens";
 
 const CARD_COLOR_VARS = [
   "var(--color-card-yellow)",
@@ -172,12 +173,7 @@ export default function PublicProfilePage() {
   }, [hosting, attending]);
 
   if (loading) {
-    return (
-      <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans">
-        <div className="w-8 h-8 border-2 border-[#9b72cf] border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm">Loading Profile...</p>
-      </main>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (error || !profile) {
@@ -341,12 +337,7 @@ export default function PublicProfilePage() {
 
         <div className="flex flex-col gap-3">
           {eventsLoading ? (
-            <div className="w-full flex flex-col items-center justify-center py-10 gap-3 bg-[#1e1e1e]/50 rounded-2xl border border-white/5">
-              <div className="w-6 h-6 border-2 border-[#9b72cf] border-t-transparent rounded-full animate-spin" />
-              <p className="text-gray-400 text-xs font-medium">
-                Loading recent activity…
-              </p>
-            </div>
+            <EventListSkeleton count={2} />
           ) : eventsError ? (
             <div className="w-full flex flex-col items-center justify-center py-8 gap-2 bg-[#1e1e1e]/50 rounded-2xl border border-white/5 text-center px-4">
               <AlertCircle className="w-6 h-6 text-red-400" />

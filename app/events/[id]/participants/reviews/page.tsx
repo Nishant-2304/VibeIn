@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Star } from "lucide-react";
-import { LoadingScreen } from "../../../../../components/ui/LoadingScreen";
+import { ParticipantsSkeleton } from "../../../../../components/ui/SkeletonScreens";
 import {
   apiErrorMessage,
   eventApi,
@@ -76,7 +76,7 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
   }
 
   if (loading) {
-    return <LoadingScreen label="Loading participants..." />;
+    return <ParticipantsSkeleton />;
   }
 
   return (

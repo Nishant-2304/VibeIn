@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, X, Users, MapPin } from "lucide-react";
-import { LoadingScreen } from "../../../../components/ui/LoadingScreen";
+import { ParticipantsSkeleton } from "../../../../components/ui/SkeletonScreens";
 import {
   apiErrorMessage,
   eventApi,
@@ -109,7 +109,7 @@ export default function EventParticipantsPage({
   }
 
   if (loading) {
-    return <LoadingScreen label="Loading participants..." />;
+    return <ParticipantsSkeleton />;
   }
 
   if (!event) {

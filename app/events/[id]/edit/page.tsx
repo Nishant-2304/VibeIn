@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { FormPageSkeleton } from "../../../../components/ui/SkeletonScreens";
 import {
   apiErrorMessage,
   eventApi,
@@ -226,12 +227,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     "mt-2 w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-3 text-white outline-none focus:border-[#b792ea]";
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
-        <Loader2 className="w-7 h-7 text-[#9b72cf] animate-spin" />
-        <p className="text-gray-400 text-sm font-medium mt-3">Loading event…</p>
-      </main>
-    );
+    return <FormPageSkeleton titleWidth="w-32" />;
   }
 
   return (

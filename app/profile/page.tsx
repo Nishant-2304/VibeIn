@@ -13,6 +13,7 @@ import {
   Zap 
 } from "lucide-react";
 import Link from "next/link";
+import { ProfileSkeleton } from "../../components/ui/SkeletonScreens";
 
 export default function ProfilePage() {
   useEffect(() => {
@@ -77,12 +78,7 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans">
-        <div className="w-8 h-8 border-2 border-[#9b72cf] border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm">Loading Profile...</p>
-      </main>
-    );
+    return <ProfileSkeleton />;
   }
 
   return (

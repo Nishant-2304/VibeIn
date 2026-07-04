@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Star, Zap, ArrowLeft, Pencil, ArrowRight } from "lucide-react";
+import { EventDetailSkeleton } from "../../../components/ui/SkeletonScreens";
 import { createClient } from "../../../lib/supabase/client";
 import {
   ApiError,
@@ -261,12 +262,7 @@ export default function EventDetailPage({
   }
 
   if (loading) {
-    return (
-      <main className="flex-1 relative px-5 pt-6 pb-10 flex flex-col items-center justify-center bg-[#121212] min-h-screen text-gray-400 font-sans z-50">
-        <div className="w-8 h-8 border-2 border-[#9b72cf] border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm">Loading event…</p>
-      </main>
-    );
+    return <EventDetailSkeleton />;
   }
 
   if (!event) {

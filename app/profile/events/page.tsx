@@ -3,10 +3,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, AlertCircle } from "lucide-react";
 import MyEventCard, {
   MyEventCardProps,
 } from "../../../components/event/MyEventCard";
+import { EventListSkeleton } from "../../../components/ui/SkeletonScreens";
 import {
   apiErrorMessage,
   MyEventItem,
@@ -267,10 +268,7 @@ export default function MyEventsPage() {
       {/* ================= CARDS FEED ================= */}
       <div className="flex flex-col gap-4">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Loader2 className="w-6 h-6 text-[#9b72cf] animate-spin" />
-            <p className="text-gray-400 text-sm font-medium">Loading your events...</p>
-          </div>
+          <EventListSkeleton count={3} />
         ) : error && hosting.length === 0 && attending.length === 0 ? (
           <div
             role="alert"

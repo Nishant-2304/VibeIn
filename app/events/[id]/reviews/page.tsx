@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Send, Star } from "lucide-react";
-import { LoadingScreen } from "../../../../components/ui/LoadingScreen";
+import { FormPageSkeleton } from "../../../../components/ui/SkeletonScreens";
 import { createClient } from "../../../../lib/supabase/client";
 import {
   apiErrorMessage,
@@ -214,7 +214,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
   }
 
   if (loading || !eligibilityChecked) {
-    return <LoadingScreen label="Loading event..." />;
+    return <FormPageSkeleton titleWidth="w-36" />;
   }
 
   return (

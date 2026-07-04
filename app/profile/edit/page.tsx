@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
+import { FormPageSkeleton } from "../../../components/ui/SkeletonScreens";
 import { DEFAULT_PFP_OPTIONS, getHostelsForGender } from "../../../lib/constants";
 
 interface FormData {
@@ -136,12 +137,7 @@ export default function EditProfilePage() {
   };
 
   if (isLoading) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-[#121212] text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin text-[#c8aaf5] mb-3" />
-        <p className="text-sm font-medium">Loading profile...</p>
-      </main>
-    );
+    return <FormPageSkeleton />;
   }
 
   return (
