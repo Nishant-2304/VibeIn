@@ -31,7 +31,7 @@ export default function LoginGateScreen() {
   };
 
   return (
-    <main className="flex-1 relative bg-[#121212] w-full flex flex-col overflow-hidden select-none">
+    <main className="min-h-full relative bg-[#121212] w-full flex flex-col overflow-hidden select-none">
 
       {/* ================= VIEW A: FIGMA SPLASH SCREEN ================= */}
       <div
@@ -50,12 +50,10 @@ export default function LoginGateScreen() {
 
       {/* ================= VIEW B: WELCOME / G-AUTH ================= */}
       <div
-        className={`flex-1 flex flex-col justify-between px-6 pt-20 pb-10 z-20 transition-opacity duration-700 ease-in-out ${!isSplash ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        className={`flex-1 flex flex-col items-center justify-center px-6 z-20 transition-opacity duration-700 ease-in-out ${!isSplash ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
       >
-        <div /> {/* Top spacer */}
-
-        <div className="flex flex-col items-center text-center max-w-[280px] mx-auto my-auto">
+        <div className="flex flex-col items-center text-center max-w-[280px] mx-auto">
           {/* Hardcoded font-family and massive scaling */}
           <h1
             style={{ fontFamily: "'Jaro', sans-serif" }}
@@ -90,8 +88,6 @@ export default function LoginGateScreen() {
             )}
           </button>
         </div>
-
-        <div /> {/* Bottom spacer to ensure the content remains centered */}
       </div>
     </main>
   );

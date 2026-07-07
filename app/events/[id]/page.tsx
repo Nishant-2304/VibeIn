@@ -154,6 +154,18 @@ export default function EventDetailPage({
       event.status === "ACTIVE") &&
     event.currentAttendees < event.maxAttendees;
 
+  const hideRoomNumberBecauseFull =
+    !!event &&
+    event.status !== "COMPLETED" &&
+    event.currentAttendees >= event.maxAttendees;
+
+  const locationDetail =
+    event?.roomNumber && !hideRoomNumberBecauseFull
+      ? event.roomNumber
+      : event
+      ? `Floor ${event.floor}`
+      : "";
+
   const hostBgColor = "#9474cc";
   const manageAttendeesBgColor = "#3d8ba8";
   
@@ -344,8 +356,13 @@ export default function EventDetailPage({
               <div>
                 <p className="font-bold tracking-tight text-white">{event.hostel}</p>
                 <p className="text-xs font-medium text-gray-400">
-                  {event.roomNumber || `Floor ${event.floor}`}
+                  {locationDetail}
                 </p>
+                {hideRoomNumberBecauseFull && (
+                  <p className="mt-1 text-[11px] font-semibold text-[#c8aaf5]">
+                    Can&apos;t see room number because event is full.
+                  </p>
+                )}
               </div>
             </div>
           </div>
