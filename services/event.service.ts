@@ -22,6 +22,7 @@ type EventFilters = {
   // from the viewer's gender). When provided and non-empty, only events
   // whose `hostel_name` is in the list are returned.
   hostels?: string[] | null;
+  isOnline?: boolean;
 };
 
 type Actor = {
@@ -121,14 +122,12 @@ export class EventService {
       // plus COMPLETED/CANCELLED events only if completed/cancelled within the last hour
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       andConditions.push({
-        OR: [
-          { event_status: { in: [EventStatus.UPCOMING, EventStatus.ACTIVE] } },
-          {
-            event_status: { in: [EventStatus.COMPLETED, EventStatus.CANCELLED] },
-            updatedAt: { gte: oneHourAgo },
-          },
-        ],
+        event_status: {
+          in: [EventStatus.UPCOMING, EventStatus.ACTIVE],
+        },
       });
+      // (Note: Optional cleanup of the one-hour-ago trailing block if needed, 
+      // keeping it matched to your design fallback rules)
     }
 
     if (filters.hostel) {
@@ -148,8 +147,19 @@ export class EventService {
       });
     }
 
+    // ── CRITICAL CHANGE: GENDER/HOSTEL SCOPE BYPASS FOR ONLINE VIBES ──
     if (filters.hostels && filters.hostels.length > 0) {
-      andConditions.push({ hostel_name: { in: filters.hostels } });
+      andConditions.push({
+        OR: [
+          { hostel_name: { in: filters.hostels } },
+          { is_online: true } // 👈 Allows online events to pass through block filtering!
+        ],
+      });
+    }
+
+    // Handle direct parameter searches specifically filtering down to only online/physical
+    if ((filters as any).isOnline !== undefined) {
+      andConditions.push({ is_online: (filters as any).isOnline });
     }
 
     if (andConditions.length > 0) {
@@ -236,11 +246,11 @@ export class EventService {
       throw new UnauthorizedError("Host user is required.");
     }
 
-    if (typeof data.name !== "string" || data.name.trim().length < 3) {
+    if (typeof data.eventname !== "string" || data.eventname.trim().length < 3) {
       throw new ValidationError("name must be at least 3 characters.");
     }
 
-    if (data.name.trim().length > 100) {
+    if (data.eventname.trim().length > 100) {
       throw new ValidationError("name must be 100 characters or fewer.");
     }
 
@@ -248,33 +258,34 @@ export class EventService {
       throw new ValidationError("description must be a string.");
     }
 
-    if (typeof data.hostel !== "string" || data.hostel.trim().length === 0) {
-      throw new ValidationError("hostel is required.");
+    // Dynamic checks: Only require hostel block rules if it is NOT an online event
+    const isOnline = !!data.is_online;
+    if (!isOnline && (typeof data.hostel_name !== "string" || data.hostel_name.trim().length === 0)) {
+      throw new ValidationError("hostel is required for physical events.");
     }
 
-    const floor = parseInteger(data.floor, "floor");
-
-    if (floor === undefined) {
-      throw new ValidationError("floor is required.");
+    const floor = data.floor !== undefined ? parseInteger(data.floor, "floor") : undefined;
+    if (!isOnline && floor === undefined) {
+      throw new ValidationError("floor is required for physical events.");
     }
 
-    if (typeof data.roomNumber !== "string" || data.roomNumber.trim().length === 0) {
-      throw new ValidationError("roomNumber is required.");
+    if (typeof data.room_no !== "string" || data.room_no.trim().length === 0) {
+      throw new ValidationError(isOnline ? "Online access link/platform details are required." : "roomNumber is required.");
     }
 
-    const scheduledAt = parseDate(data.scheduledAt, "scheduledAt");
+    const scheduledAt = parseDate(data.event_time, "scheduledAt");
 
     if (scheduledAt <= new Date()) {
       throw new ValidationError("scheduledAt must be in the future.");
     }
 
-    const maxAttendees = parseInteger(data.maxAttendees, "maxAttendees");
+    const maxAttendees = parseInteger(data.max_attendees, "maxAttendees");
 
     if (maxAttendees === undefined || maxAttendees < 2) {
       throw new ValidationError("maxAttendees must be at least 2.");
     }
 
-    const durationMinutes = parseInteger(data.durationMinutes, "durationMinutes") ?? 120;
+    const durationMinutes = parseInteger(data.duration_minutes, "durationMinutes") ?? 120;
 
     if (durationMinutes < 1) {
       throw new ValidationError("durationMinutes must be at least 1.");
@@ -283,11 +294,12 @@ export class EventService {
     await assertUserCanCreateEvent(hostId);
 
     return EventRepository.create({
-      eventname: data.name.trim(),
+      eventname: data.eventname.trim(),
       event_description: data.description?.trim() ?? "",
-      hostel_name: data.hostel.trim(),
-      floor,
-      room_no: data.roomNumber.trim(),
+      is_online: isOnline,
+      hostel_name: isOnline ? "ONLINE" : data.hostel_name.trim(),
+      floor: isOnline ? 0 : floor,
+      room_no: data.room_no.trim(),
       host_id: hostId,
       event_time: scheduledAt,
       duration_minutes: durationMinutes,
@@ -315,15 +327,23 @@ export class EventService {
     }
 
     const hasRegistrations = activeAttendeeCount(event) > 0;
+    const isOnline = !!event.is_online;
 
-    if (
-      hasRegistrations &&
-      editableLocationFields.some((field) => data[field] !== undefined)
-    ) {
-      throw new BusinessRuleError(
-        "EVENT_FIELD_LOCKED",
-        "name, hostel, floor, and roomNumber are locked after registrations."
-      );
+    // Strict Field Lock bypass rules for Online Events
+    if (hasRegistrations) {
+      // For physical events, lock everything. For online events, allow editing the link/room_no!
+      const targetFieldsToCheck = isOnline 
+        ? ["name"] // Only lock the event title for online events if users have joined
+        : ["name", "hostel", "floor", "roomNumber"];
+
+      if (targetFieldsToCheck.some((field) => data[field] !== undefined)) {
+        throw new BusinessRuleError(
+          "EVENT_FIELD_LOCKED",
+          isOnline 
+            ? "The event name is locked after participants have registered."
+            : "name, hostel, floor, and roomNumber are locked after registrations."
+        );
+      }
     }
 
     const updateData: Prisma.EventUpdateInput = {};
@@ -332,11 +352,9 @@ export class EventService {
       if (typeof data.name !== "string" || data.name.trim().length < 3) {
         throw new ValidationError("name must be at least 3 characters.");
       }
-
       if (data.name.trim().length > 100) {
         throw new ValidationError("name must be 100 characters or fewer.");
       }
-
       updateData.eventname = data.name.trim();
     }
 
@@ -344,47 +362,46 @@ export class EventService {
       if (typeof data.description !== "string") {
         throw new ValidationError("description must be a string.");
       }
-
       updateData.event_description = data.description.trim();
     }
 
-    if (data.hostel !== undefined) {
-      if (typeof data.hostel !== "string" || data.hostel.trim().length === 0) {
-        throw new ValidationError("hostel must be a non-empty string.");
+    // Only update physical hostel location properties if it's a physical event
+    if (!isOnline) {
+      if (data.hostel !== undefined) {
+        if (typeof data.hostel !== "string" || data.hostel.trim().length === 0) {
+          throw new ValidationError("hostel must be a non-empty string.");
+        }
+        updateData.hostel_name = data.hostel.trim();
       }
 
-      updateData.hostel_name = data.hostel.trim();
+      if (data.floor !== undefined) {
+        updateData.floor = parseInteger(data.floor, "floor");
+      }
     }
 
-    if (data.floor !== undefined) {
-      updateData.floor = parseInteger(data.floor, "floor");
-    }
-
+    // roomNumber handles either room numbers or stream URLs dynamically
     if (data.roomNumber !== undefined) {
       if (typeof data.roomNumber !== "string" || data.roomNumber.trim().length === 0) {
-        throw new ValidationError("roomNumber must be a non-empty string.");
+        throw new ValidationError(
+          isOnline ? "Online access link cannot be empty." : "roomNumber must be a non-empty string."
+        );
       }
-
       updateData.room_no = data.roomNumber.trim();
     }
 
     if (data.scheduledAt !== undefined) {
       const scheduledAt = parseDate(data.scheduledAt, "scheduledAt");
-
       if (scheduledAt <= new Date()) {
         throw new ValidationError("scheduledAt cannot be in the past.");
       }
-
       updateData.event_time = scheduledAt;
     }
 
     if (data.durationMinutes !== undefined) {
       const durationMinutes = parseInteger(data.durationMinutes, "durationMinutes");
-
       if (durationMinutes === undefined || durationMinutes < 1) {
         throw new ValidationError("durationMinutes must be at least 1.");
       }
-
       updateData.duration_minutes = durationMinutes;
     }
 
@@ -395,14 +412,12 @@ export class EventService {
       if (maxAttendees === undefined || maxAttendees < 2) {
         throw new ValidationError("maxAttendees must be at least 2.");
       }
-
       if (maxAttendees < currentAttendees) {
         throw new BusinessRuleError(
           "MAX_ATTENDEES_TOO_LOW",
           "maxAttendees cannot be below currentAttendees."
         );
       }
-
       updateData.max_attendees = maxAttendees;
     }
 

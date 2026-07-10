@@ -10,10 +10,12 @@ import {
   MapPin, 
   Star,
   Ticket, 
-  Zap 
+  Zap,
+  Mail
 } from "lucide-react";
 import Link from "next/link";
 import { ProfileSkeleton } from "../../components/ui/SkeletonScreens";
+
 
 export default function ProfilePage() {
   useEffect(() => {
@@ -155,34 +157,40 @@ export default function ProfilePage() {
 
       {/* ================= ACCOUNT SETTINGS CLUSTER ================= */}
       <div className="w-full z-10 mb-8 mt-auto">
-        <h2 
-          style={{ fontFamily: "'Jaro', sans-serif" }} 
-          className="text-sm font-black tracking-wider text-gray-400 uppercase mb-3 px-1"
-        >
-          Account Settings
-        </h2>
+  <h2 
+    style={{ fontFamily: "'Jaro', sans-serif" }} 
+    className="text-sm font-black tracking-wider text-gray-400 uppercase mb-3 px-1"
+  >
+    Account Settings
+  </h2>
 
-        <div className="w-full bg-[#1e1e1e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-lg">
-          
-          {/* ---> Wrapped in Link pointing to /profile/edit <--- */}
-          <Link href="/profile/edit" className="block">
-            <SettingsItem icon={<Edit3 className="w-5 h-5 text-[#b594e6]" />} label="Edit Profile" />
-          </Link>
-          
-          <Link href="/profile/events" className="block">
-            <SettingsItem icon={<Ticket className="w-5 h-5 text-[#f5c242]" />} label="My Events" />
-          </Link>
+  <div className="w-full bg-[#1e1e1e] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5 shadow-lg">
+    <Link href="/profile/edit" className="block">
+      <SettingsItem icon={<Edit3 className="w-5 h-5 text-[#b594e6]" />} label="Edit Profile" />
+    </Link>
+    
+    <Link href="/profile/events" className="block">
+      <SettingsItem icon={<Ticket className="w-5 h-5 text-[#f5c242]" />} label="My Events" />
+    </Link>
 
-          <button type="button" onClick={handleLogout} className="w-full text-left cursor-pointer">
-            <div className="flex items-center justify-between p-4 px-5 hover:bg-white/5 transition active:bg-white/10">
-              <div className="flex items-center gap-3.5">
-                <LogOut className="w-5 h-5 text-red-400" />
-                <span className="font-bold text-sm text-red-400 tracking-tight">Logout</span>
-              </div>
-            </div>
-          </button>
+    {/* ================= NEW CONTACT US ROW ================= */}
+    <a 
+      href="mailto:support@vibein.com?subject=VibeIn%20Support%20Request&body=Hi%20VibeIn%20Team%2C%0A%0A%5BWrite%20your%20bug%20report%20or%20feedback%20here%5D" 
+      className="block"
+    >
+      <SettingsItem icon={<Mail className="w-5 h-5 text-[#3d8ba8]" />} label="Contact Us" />
+    </a>
+
+    <button type="button" onClick={handleLogout} className="w-full text-left cursor-pointer">
+      <div className="flex items-center justify-between p-4 px-5 hover:bg-white/5 transition active:bg-white/10">
+        <div className="flex items-center gap-3.5">
+          <LogOut className="w-5 h-5 text-red-400" />
+          <span className="font-bold text-sm text-red-400 tracking-tight">Logout</span>
         </div>
       </div>
+    </button>
+  </div>
+</div>
 
     </main>
   );

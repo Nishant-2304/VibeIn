@@ -1,8 +1,9 @@
+// app/events/create/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -10,21 +11,23 @@ import {
   Clock3,
   DoorOpen,
   FileText,
-  Hash,
   MapPinned,
   PartyPopper,
   Users,
+  Globe,
 } from "lucide-react";
 import { apiErrorMessage, eventApi } from "../../../lib/client-api";
 import { getHostelsForGender } from "../../../lib/constants";
 import { createClient } from "../../../lib/supabase/client";
 
 type FormState = {
+  eventType: "PHYSICAL" | "ONLINE";
   eventName: string;
   description: string;
   hostel: string;
   floor: string;
   room: string;
+  onlineLink: string; // New field for meeting/game room link
   dateTime: string;
   duration: string;
   maxAttendees: string;
@@ -47,15 +50,15 @@ const steps = [
   },
   {
     id: "hostel",
-    title: "Hostel",
-    subtitle: "Choose where the event is happening.",
+    title: "Hostel Location",
+    subtitle: "Is this happening in a hostel block or online?",
     icon: MapPinned,
     placeholder: "Select Hostel",
   },
   {
     id: "floorRoom",
-    title: "Floor & Room",
-    subtitle: "Lock the exact location.",
+    title: "Location Details",
+    subtitle: "Lock down exactly where people need to go.",
     icon: DoorOpen,
     placeholder: "Floor and room number",
   },
@@ -98,16 +101,18 @@ export default function CreateEventPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>({
+    eventType: "PHYSICAL",
     eventName: "",
     description: "",
     hostel: "",
     floor: "",
     room: "",
+    onlineLink: "",
     dateTime: "",
     duration: "1h",
     maxAttendees: "10",
   });
-  // The host's gender scopes the hostel dropdown. Fetched once on mount.
+
   const [userGender, setUserGender] = useState<"MALE" | "FEMALE" | null>(null);
   const [isUserLoaded, setIsUserLoaded] = useState(false);
 
@@ -130,14 +135,12 @@ export default function CreateEventPage() {
           setUserGender(me?.gender ?? null);
         }
       } catch {
-        // ignore — the gender filter is best-effort
+        // Fallback catch
       } finally {
         if (active) setIsUserLoaded(true);
       }
     });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [router]);
 
   const currentStep = steps[step];
@@ -162,10 +165,14 @@ export default function CreateEventPage() {
       case "eventName":
         return form.eventName.trim().length >= 3 ? "" : "Event name must be at least 3 characters.";
       case "hostel":
+        if (form.eventType === "ONLINE") return ""; // Skip check for online
         if (!form.hostel) return "Please select a hostel.";
-        if (!allowedHostels.includes(form.hostel)) return "Please select a hostel.";
+        if (!allowedHostels.includes(form.hostel)) return "Please select a valid hostel.";
         return "";
       case "floorRoom":
+        if (form.eventType === "ONLINE") {
+          return form.onlineLink.trim() ? "" : "Please provide a valid online meeting link or platform name.";
+        }
         if (!Number.isInteger(Number(form.floor)) || Number(form.floor) < 0) {
           return "Floor must be a whole number.";
         }
@@ -184,16 +191,11 @@ export default function CreateEventPage() {
       setError(validationError);
       return;
     }
-
-    if (!isLastStep) {
-      setStep((current) => current + 1);
-    }
+    if (!isLastStep) setStep((current) => current + 1);
   };
 
   const goBack = () => {
-    if (!isFirstStep) {
-      setStep((current) => current - 1);
-    }
+    if (!isFirstStep) setStep((current) => current - 1);
   };
 
   const handleCreate = async () => {
@@ -207,21 +209,21 @@ export default function CreateEventPage() {
     setError("");
 
     try {
+      const isOnline = form.eventType === "ONLINE";
+
       const event = await eventApi.create({
         name: form.eventName.trim(),
         description: form.description.trim(),
-        hostel: form.hostel,
-        floor: Number(form.floor),
-        roomNumber: form.room.trim(),
+        // Pass "ONLINE" as the hostel block so the backend instantly flags it
+        hostel: isOnline ? "ONLINE" : form.hostel,
+        floor: isOnline ? 0 : Number(form.floor),
+        // Use your existing type-safe roomNumber parameter for either state
+        roomNumber: isOnline ? form.onlineLink.trim() : form.room.trim(),
         scheduledAt: new Date(form.dateTime).toISOString(),
         durationMinutes: durationMinutesByLabel[form.duration] ?? 60,
         maxAttendees: Math.max(2, Number.parseInt(form.maxAttendees, 10) || 2),
       });
 
-      // Use replace instead of push so the create form is removed from
-      // the history stack. The user lands on the event detail page, and
-      // pressing back returns to wherever they came from (typically
-      // /events or /), not back into the create wizard.
       router.replace(`/events/${event.id}`);
     } catch (err) {
       setError(apiErrorMessage(err));
@@ -247,58 +249,82 @@ export default function CreateEventPage() {
             value={form.description}
             onChange={(e) => updateField("description", e.target.value)}
             placeholder={currentStep.placeholder}
-            rows={7}
+            rows={6}
             className="w-full resize-none rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none transition placeholder:text-white/20 focus:border-[#b792ea]"
           />
         );
       case "hostel":
         return (
-          <div className="space-y-2">
-            <div className="relative">
-              <select
-                value={form.hostel}
-                onChange={(e) => updateField("hostel", e.target.value)}
-                disabled={!isUserLoaded || allowedHostels.length === 0}
-                className="w-full bg-[#16161A] border border-zinc-800 rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-all appearance-none text-white focus:border-[#9D7BDE] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          <div className="space-y-4">
+            {/* Segmented Switch for Event Environment */}
+            <div className="w-full bg-[#16161A] p-1 rounded-xl flex items-center gap-1 border border-white/5">
+              <button
+                type="button"
+                onClick={() => updateField("eventType", "PHYSICAL")}
+                className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${ // 👈 Changed from mt-8 to flex-1
+                  form.eventType === "PHYSICAL" ? "bg-[#b792ea] text-[#3b2466]" : "text-gray-400"
+                }`}
               >
-                <option value="" disabled hidden>
-                  {currentStep.placeholder}
-                </option>
-                {allowedHostels.map((hostel) => (
-                  <option key={hostel} value={hostel}>
-                    {hostel}
-                  </option>
-                ))}
-              </select>
+                In Hostel
+              </button>
+              <button
+                type="button"
+                onClick={() => updateField("eventType", "ONLINE")}
+                className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                  form.eventType === "ONLINE" ? "bg-[#b792ea] text-[#3b2466]" : "text-gray-400"
+                }`}
+              >
+                Online Event
+              </button>
             </div>
-            {userGender && (
-              <p className="text-[11px] text-white/40 font-medium">
-                {userGender === "MALE"
-                  ? "Boys' hostels only — your event will only be visible to boys."
-                  : "Girls' hostels only — your event will only be visible to girls."}
-              </p>
+
+            {form.eventType === "PHYSICAL" ? (
+              <div className="relative">
+                <select
+                  value={form.hostel}
+                  onChange={(e) => updateField("hostel", e.target.value)}
+                  disabled={!isUserLoaded || allowedHostels.length === 0}
+                  className="w-full bg-[#16161A] border border-zinc-800 rounded-xl px-4 py-3.5 text-sm focus:outline-none transition-all appearance-none text-white focus:border-[#9D7BDE] cursor-pointer disabled:opacity-50"
+                >
+                  <option value="" disabled hidden>{currentStep.placeholder}</option>
+                  {allowedHostels.map((hostel) => (
+                    <option key={hostel} value={hostel}>{hostel}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl border border-dashed border-white/10 bg-[#16161A] flex items-center gap-3 text-gray-400 text-xs font-medium">
+                <Globe className="w-4 h-4 text-[#b792ea]" />
+                <span>Bypassing block filtering. This online event will be discoverable app-wide!</span>
+              </div>
             )}
           </div>
         );
       case "floorRoom":
-        return (
+        return form.eventType === "PHYSICAL" ? (
           <div className="grid grid-cols-2 gap-3">
             <input
               type="number"
               min={0}
-              step={1}
               value={form.floor}
               onChange={(e) => updateField("floor", e.target.value)}
-              placeholder="e.g., 4th"
-              className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none transition placeholder:text-white/20 focus:border-[#b792ea]"
+              placeholder="Floor (e.g. 4)"
+              className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea]"
             />
             <input
               value={form.room}
               onChange={(e) => updateField("room", e.target.value)}
-              placeholder="e.g., 402"
-              className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none transition placeholder:text-white/20 focus:border-[#b792ea]"
+              placeholder="Room (e.g. 402)"
+              className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea]"
             />
           </div>
+        ) : (
+          <input
+            value={form.onlineLink}
+            onChange={(e) => updateField("onlineLink", e.target.value)}
+            placeholder="e.g. Discord Link, GMeets, or room code"
+            className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea] placeholder:text-white/20"
+          />
         );
       case "dateTime":
         return (
@@ -306,8 +332,7 @@ export default function CreateEventPage() {
             type="datetime-local"
             value={form.dateTime}
             onChange={(e) => updateField("dateTime", e.target.value)}
-            placeholder={currentStep.placeholder}
-            className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none transition placeholder:text-white/20 focus:border-[#b792ea]"
+            className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea]"
           />
         );
       case "duration":
@@ -321,9 +346,7 @@ export default function CreateEventPage() {
                   type="button"
                   onClick={() => updateField("duration", option)}
                   className={`rounded-full border px-5 py-3 text-[15px] font-medium transition ${
-                    active
-                      ? "border-[#b792ea] bg-[#b792ea] text-[#3b2466]"
-                      : "border-white/15 bg-transparent text-white"
+                    active ? "border-[#b792ea] bg-[#b792ea] text-[#3b2466]" : "border-white/15 bg-transparent text-white"
                   }`}
                 >
                   {option}
@@ -336,27 +359,12 @@ export default function CreateEventPage() {
         return (
           <div className="rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-5">
             <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => updateAttendees(-1)}
-                disabled={Number(form.maxAttendees) <= 2}
-                className="text-4xl leading-none text-white/80"
-                aria-label="Decrease attendees"
-              >
-                −
-              </button>
+              <button type="button" onClick={() => updateAttendees(-1)} disabled={Number(form.maxAttendees) <= 2} className="text-4xl text-white/80">−</button>
               <div className="text-center">
-                <p className="text-[30px] font-semibold leading-none text-[#b792ea]">{form.maxAttendees}</p>
+                <p className="text-[30px] font-semibold text-[#b792ea]">{form.maxAttendees}</p>
                 <p className="mt-1 text-[12px] font-semibold tracking-[0.2em] text-white/25">PEOPLE</p>
               </div>
-              <button
-                type="button"
-                onClick={() => updateAttendees(1)}
-                className="text-4xl leading-none text-white/80"
-                aria-label="Increase attendees"
-              >
-                +
-              </button>
+              <button type="button" onClick={() => updateAttendees(1)} className="text-4xl text-white/80">+</button>
             </div>
           </div>
         );
@@ -366,104 +374,123 @@ export default function CreateEventPage() {
   };
 
   return (
-    <main className="h-full min-h-0 overflow-hidden bg-black text-white">
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-md flex-col bg-black px-5 pb-4 pt-6">
-        <div className="flex shrink-0 items-center justify-between">
-          <Link href="/events" className="inline-flex items-center gap-2 text-[#b792ea]">
-            <ArrowLeft className="h-6 w-6" />
-          </Link>
-          <h1 className="text-[22px] font-extrabold text-white">Create Event</h1>
-          <div className="w-6" />
+  // We use max-h-fit to forcefully snap the container bounds down to match the input card elements
+  <main className="w-full min-h-screen bg-black text-white flex flex-col justify-start items-center">
+    
+    {/* 1. Changed flex-1 to !h-auto and !max-h-fit to prevent layout engine stretch.
+      2. Set pb-32 to protect item scrolling from overlapping the floating system tab bar elements.
+    */}
+    <div className="w-full max-w-md flex flex-col !h-auto !max-h-fit bg-black px-5 pb-32 pt-6">
+      
+      {/* ================= HEADER ================= */}
+      <div className="flex shrink-0 items-center justify-between">
+        <Link href="/events" className="inline-flex items-center gap-2 text-[#b792ea]">
+          <ArrowLeft className="h-6 w-6" />
+        </Link>
+        <h1 className="text-[22px] font-extrabold text-white">Create Event</h1>
+        <div className="w-6" />
+      </div>
+
+      {/* ================= PROGRESS STEPS ================= */}
+      <div className="mt-5 flex shrink-0 items-center gap-2">
+        {steps.map((item, index) => (
+          <span
+            key={item.id}
+            className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-[#b792ea]" : "bg-white/10"}`}
+          />
+        ))}
+      </div>
+
+      {/* ================= STEP CONTENT CONTAINER ================= */}
+      <section className="mt-6 flex flex-col h-auto max-h-fit">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#b792ea]/40 bg-[#1c1c1e] text-[#b792ea] font-bold">
+            {step + 1}
+          </div>
+          <div>
+            <p className="text-[12px] uppercase tracking-[0.2em] text-white/35">
+              Step {step + 1} of {steps.length}
+            </p>
+            <h2 className="mt-1 text-[18px] font-semibold text-white">{currentStep.title}</h2>
+          </div>
         </div>
 
-        <div className="mt-5 flex shrink-0 items-center gap-2">
-          {steps.map((item, index) => (
-            <span
-              key={item.id}
-              className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-[#b792ea]" : "bg-white/10"}`}
-            />
-          ))}
+        <p className="mt-3 text-[14px] leading-6 text-[#9ca3af]">{currentStep.subtitle}</p>
+
+        <div className="mt-6 rounded-[28px] border border-white/10 bg-[#131313] p-5 shadow-lg">
+          <div className="mb-4 flex items-center gap-3 text-[#b792ea]">
+            <currentStep.icon className="h-5 w-5" />
+            <span className="text-[13px] font-semibold uppercase tracking-[0.18em]">{currentStep.title}</span>
+          </div>
+          {renderStepBody()}
         </div>
 
-        <section className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#b792ea]/40 bg-[#1c1c1e] text-[#b792ea]">
-              {step + 1}
-            </div>
-            <div>
-              <p className="text-[12px] uppercase tracking-[0.2em] text-white/35">
-                Step {step + 1} of {steps.length}
-              </p>
-              <h2 className="mt-1 text-[18px] font-semibold text-white">{currentStep.title}</h2>
-            </div>
-          </div>
+        {step === 0 && (
+          <p className="mt-4 text-[13px] leading-6 text-[#9ca3af]">
+            We’ll build the event step by step, so every detail stays focused and easy to fill.
+          </p>
+        )}
 
-          <p className="mt-3 text-[14px] leading-6 text-[#9ca3af]">{currentStep.subtitle}</p>
-
-          <div className="mt-6 rounded-[28px] border border-white/10 bg-[#131313] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-            <div className="mb-4 flex items-center gap-3 text-[#b792ea]">
-              <currentStep.icon className="h-5 w-5" />
-              <span className="text-[13px] font-semibold uppercase tracking-[0.18em]">{currentStep.title}</span>
-            </div>
-            {renderStepBody()}
-          </div>
-
-          {step === 0 && (
-            <p className="mt-4 text-[13px] leading-6 text-[#9ca3af]">
-              We’ll build the event step by step, so every detail stays focused and easy to fill.
+        {step === steps.length - 1 && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-[#1c1c1e] p-4 text-[13px] leading-6 text-[#d1d5db]">
+            <p className="font-semibold text-white">Review Configuration</p>
+            <p className="mt-2 font-bold text-[#b792ea]">{form.eventName || "Event name"}</p>
+            <p>
+              {form.eventType === "ONLINE" 
+                ? `🌐 Online Event • Info: ${form.onlineLink || "---"}` 
+                : `🏢 ${form.hostel || "Hostel Block"} • Flr ${form.floor || "-"} • Rm ${form.room || "-"}`}
             </p>
-          )}
+            <p>{form.dateTime || "Scheduled Time"}</p>
+          </div>
+        )}
 
-          {step === steps.length - 1 && (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-[#1c1c1e] p-4 text-[13px] leading-6 text-[#d1d5db]">
-              <p className="font-semibold text-white">Review</p>
-              <p className="mt-2">{form.eventName || "Event name"}</p>
-              <p>{form.hostel || "Hostel"} • Floor {form.floor || "-"} • Room {form.room || "-"}</p>
-              <p>{form.dateTime || "Date and time"}</p>
-            </div>
-          )}
-          {error && (
-            <p className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] leading-5 text-red-200">
-              {error}
-            </p>
-          )}
-        </section>
+        {error && (
+          <p className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] leading-5 text-red-200">
+            {error}
+          </p>
+        )}
+      </section>
 
-        <div className="grid shrink-0 grid-cols-2 gap-3 pt-4">
+      {/* ================= ACTIONS BUTTON ROW ================= */}
+      {/* Changing from relative space-allocation positioning to a clean, fixed block-top margin offset parameter.
+        This cuts out any flex layout dependencies and forces the button segment to sit tight under the active card input box.
+      */}
+      <div className="grid shrink-0 grid-cols-2 gap-3 pt-4 mt-8">
+        <button
+          type="button"
+          onClick={goBack}
+          disabled={isFirstStep}
+          className={`rounded-2xl border py-4 text-[16px] font-medium transition ${
+            isFirstStep
+              ? "cursor-not-allowed border-white/10 text-white/25"
+              : "border-white/30 text-white"
+          }`}
+        >
+          Back
+        </button>
+
+        {isLastStep ? (
           <button
             type="button"
-            onClick={goBack}
-            disabled={isFirstStep}
-            className={`rounded-2xl border py-4 text-[16px] font-medium transition ${
-              isFirstStep
-                ? "cursor-not-allowed border-white/10 text-white/25"
-                : "border-white/30 text-white"
-            }`}
+            onClick={handleCreate}
+            disabled={isSubmitting}
+            className="rounded-2xl bg-[#b792ea] py-4 text-[16px] font-semibold text-[#3b2466] shadow-md transition-all active:scale-[0.98]"
           >
-            Back
+            {isSubmitting ? "Creating..." : "Create Event"}
           </button>
-
-          {isLastStep ? (
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={isSubmitting}
-              className="rounded-2xl bg-[#b792ea] py-4 text-[16px] font-semibold text-[#3b2466]"
-            >
-              {isSubmitting ? "Creating..." : "Create Event"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={goNext}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-[#b792ea] py-4 text-[16px] font-semibold text-[#3b2466]"
-            >
-              Next
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          )}
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={goNext}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-[#b792ea] py-4 text-[16px] font-semibold text-[#3b2466]"
+          >
+            Next
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        )}
       </div>
-    </main>
-  );
+
+    </div>
+  </main>
+);
 }

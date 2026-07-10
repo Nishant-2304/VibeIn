@@ -1,3 +1,4 @@
+// app/api/events/route.ts
 import {
   errorResponse,
   formatEventListItem,
@@ -40,6 +41,8 @@ export async function GET(request: Request) {
         floor: searchParams.get("floor"),
         status: searchParams.get("status"),
         hostels: genderHostels,
+        // Passing down search param explicitly if filtering specifically for online formats
+        isOnline: searchParams.get("isOnline") === "true" ? true : undefined,
       },
       { skip, limit }
     );
@@ -64,7 +67,22 @@ export async function POST(request: Request) {
 
     const actor = { userId: currentUser.id };
 
-    const event = await EventService.createEvent(body, actor);
+    // INFERENCE LOGIC: If hostel comes in as "ONLINE", mark database boolean true
+    const isOnline = body.hostel === "ONLINE";
+
+    const normalizedPayload = {
+      eventname: body.name,
+      event_description: body.description,
+      is_online: isOnline,
+      hostel_name: body.hostel, // Will be stored cleanly as "ONLINE"
+      floor: isOnline ? 0 : Number(body.floor),
+      room_no: body.roomNumber?.trim() || "", // Holds our meeting URL string or room text
+      event_time: body.scheduledAt,
+      duration_minutes: body.durationMinutes,
+      max_attendees: Number(body.maxAttendees),
+    };
+
+    const event = await EventService.createEvent(normalizedPayload, actor);
 
     return jsonResponse(formatEventMutation(event), 201);
   } catch (error) {

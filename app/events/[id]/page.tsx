@@ -39,7 +39,6 @@ export default function EventDetailPage({
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   
-  // NEW: Track exact attendance status to ensure attendees can review
   const [attendanceStatus, setAttendanceStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,10 +75,7 @@ export default function EventDetailPage({
                 );
 
               if (active) {
-                // Save the exact status (REGISTERED, ATTENDED, NO_SHOW, etc.)
                 setAttendanceStatus(registration.attendanceStatus);
-                
-                // Consider them "Registered" for button UI purposes if they are registered OR attended
                 setIsRegistered(
                   registration.attendanceStatus === "REGISTERED" || 
                   registration.attendanceStatus === "ATTENDED"
@@ -159,6 +155,9 @@ export default function EventDetailPage({
     event.status !== "COMPLETED" &&
     event.currentAttendees >= event.maxAttendees;
 
+  // Determine if it's an online event based on hostel name parameter
+  const isOnline = event?.hostel === "ONLINE";
+
   const locationDetail =
     event?.roomNumber && !hideRoomNumberBecauseFull
       ? event.roomNumber
@@ -170,11 +169,6 @@ export default function EventDetailPage({
   const manageAttendeesBgColor = "#3d8ba8";
   
   async function register() {
-    // Frontend guard: the event host must never be able to register for
-    // their own event. The host controls (Manage Attendees, Live Controls)
-    // are shown in their place. This is a defensive check on top of the
-    // conditional render below, in case the host relationship is computed
-    // after the button mounts.
     if (isHost) {
       setError("Hosts cannot register for their own event.");
       return;
@@ -302,7 +296,6 @@ export default function EventDetailPage({
           <Image src="/Hero-Section.png" alt="" fill priority className="object-cover" />
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#121212] to-transparent" />
           
-          {/* Floating Back Button */}
           <button
             type="button"
             onClick={() => router.back()}
@@ -349,22 +342,45 @@ export default function EventDetailPage({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
-                <MapPin className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold tracking-tight text-white">{event.hostel}</p>
-                <p className="text-xs font-medium text-gray-400">
-                  {locationDetail}
-                </p>
-                {hideRoomNumberBecauseFull && (
-                  <p className="mt-1 text-[11px] font-semibold text-[#c8aaf5]">
-                    Can&apos;t see room number because event is full.
+            {/* Interactive Switch for Online vs Physical Copy Link Handling */}
+            {isOnline ? (
+              <a
+                href={event.roomNumber.startsWith("http") ? event.roomNumber : `https://${event.roomNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 w-full p-2.5 -m-2.5 rounded-2xl hover:bg-white/5 active:scale-[0.99] transition-all cursor-pointer group"
+              >
+                <div className="rounded-xl bg-[#c8aaf5]/10 p-2.5 text-[#b792ea] group-hover:bg-[#c8aaf5]/20 transition-colors">
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold tracking-tight text-[#b792ea] flex items-center gap-1.5">
+                    ONLINE EVENT
+                    <span className="text-[10px] font-black tracking-wider bg-[#b792ea]/20 text-[#c8aaf5] px-1.5 py-0.5 rounded-md uppercase">
+                      Open Link ↗
+                    </span>
                   </p>
-                )}
+                  <p className="text-xs font-medium text-gray-400 truncate pr-4 underline decoration-gray-600 group-hover:text-gray-300">
+                    {event.roomNumber}
+                  </p>
+                </div>
+              </a>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-bold tracking-tight text-white">{event.hostel}</p>
+                  <p className="text-xs font-medium text-gray-400">{locationDetail}</p>
+                  {hideRoomNumberBecauseFull && (
+                    <p className="mt-1 text-[11px] font-semibold text-[#c8aaf5]">
+                      Can&apos;t see room number because event is full.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* ================= HOSTED BY CARD ================= */}
@@ -424,16 +440,9 @@ export default function EventDetailPage({
             </div>
           )}
 
-          {/* ================= PARTICIPANT CONTROLS =================
-              Hidden for the host. The host sees the Manage Attendees card
-              and Live Controls below instead — the host must never be
-              able to register for their own event. */}
+          {/* ================= PARTICIPANT CONTROLS ================= */}
           {!isHost && (
             <div className="mt-8 flex flex-col gap-3">
-              {/* Register/Unregister Button.
-                  Disabled (and the event is treated as "closed") when the
-                  event is COMPLETED or CANCELLED. The host never sees
-                  this block because of the surrounding !isHost gate. */}
               <button
                 type="button"
                 onClick={() => void (isRegistered ? unregister() : register())}
@@ -454,16 +463,6 @@ export default function EventDetailPage({
                 <Zap className="h-5 w-5 stroke-[2.5]" />
               </button>
 
-              {/* Review eligibility:
-                  - Show the Submit Review button only for ATTENDED
-                    participants once the event is COMPLETED.
-                  - REGISTERED (event already COMPLETED): the host has not
-                    marked attendance yet. Show a soft info message and
-                    no clickable button.
-                  - NO_SHOW or CANCELLED: not eligible. Show why.
-                  - Event not COMPLETED: show a soft info message
-                    ("Reviews open once the event is completed") so the
-                    user understands when they can review. */}
               {event.status === "COMPLETED" &&
                 (attendanceStatus === "REGISTERED" ? (
                   <div
@@ -573,7 +572,6 @@ export default function EventDetailPage({
                   </div>
 
                   <div className="mt-5 relative z-10">
-                    {/* The signature partial divider */}
                     <div className="w-1/3 h-px bg-[#c8aaf5]/30 mb-5" />
                     
                     <div className="flex flex-col gap-3">
@@ -608,20 +606,18 @@ export default function EventDetailPage({
                         </button>
                       )}
 
-                      {event.status === "UPCOMING" && (
-                        <button
-                          type="button"
-                          disabled={statusUpdating}
-                          onClick={() => {
-                            if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
-                              void updateEventStatus("CANCELLED");
-                            }
-                          }}
-                          className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#d95284]/45 bg-[#d95284]/15 hover:bg-[#d95284]/25 font-display font-black text-xl tracking-wider text-[#ff8fb5] disabled:opacity-40 transition-all active:scale-[0.99]"
-                        >
-                          Cancel Event
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={statusUpdating}
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to cancel this event? This action cannot be undone.")) {
+                            void updateEventStatus("CANCELLED");
+                          }
+                        }}
+                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 font-display font-black text-xl tracking-wider text-red-400 disabled:opacity-40 transition-all active:scale-[0.99]"
+                      >
+                        Cancel Event
+                      </button>
                     </div>
                   </div>
                 </div>

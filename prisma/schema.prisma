@@ -111,19 +111,19 @@ model Event {
   id                String      @id @default(uuid())
   eventname         String
   event_description String
-  hostel_name       String
-  floor             Int
-  room_no           String      // string, not int — room numbers like "A-301" or "LG-4" are valid
+  is_online         Boolean     @default(false) // 👈 Track if it's an online event
+  hostel_name       String?     // 👈 Made optional: stores "ONLINE" or Null for online events
+  floor             Int?        // 👈 Made optional: stores 0 or Null for online events
+  room_no           String      // 👈 Kept string: stores room numbers like "A-301" OR the online URL/platform name
   host_id           String
   event_time        DateTime
-  duration_minutes  Int         // needed so the cron job knows when to flip ACTIVE → COMPLETED
+  duration_minutes  Int         
   max_attendees     Int
   event_status      EventStatus @default(UPCOMING)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
   // ── Relations ──────────────────────────────────────────────────────────────
-
   host               User                @relation("EventHost", fields: [host_id], references: [id])
   participants       EventParticipant[]
   hostReviews        HostReview[]
@@ -131,8 +131,6 @@ model Event {
   eventReviews       EventReview[]
 
   // ── Indexes ────────────────────────────────────────────────────────────────
-
-  // These are the fields you will filter and sort by most in GET /api/events.
   @@index([event_status])
   @@index([hostel_name])
   @@index([event_time])

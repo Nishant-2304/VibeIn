@@ -28,6 +28,7 @@ type EventFilters = {
   floor?: string | null;
   reportCount?: string | null;
   q?: string | null;
+  isOnline?: boolean;
 };
 
 function isValidEnumValue<T extends Record<string, string>>(
