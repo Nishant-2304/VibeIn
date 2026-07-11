@@ -342,8 +342,7 @@ export default function EventDetailPage({
               </div>
             </div>
 
-            {/* Interactive Switch for Online vs Physical Copy Link Handling */}
-            {isOnline ? (
+            {isOnline && event.roomNumber ? (
               <a
                 href={event.roomNumber.startsWith("http") ? event.roomNumber : `https://${event.roomNumber}`}
                 target="_blank"
@@ -365,6 +364,15 @@ export default function EventDetailPage({
                   </p>
                 </div>
               </a>
+            ) : isOnline ? (
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-bold tracking-tight text-white">Online</p>
+                </div>
+              </div>
             ) : (
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
