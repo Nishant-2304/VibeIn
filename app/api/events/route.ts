@@ -66,17 +66,15 @@ export async function POST(request: Request) {
     }
 
     const actor = { userId: currentUser.id };
-
-    // INFERENCE LOGIC: If hostel comes in as "ONLINE", mark database boolean true
     const isOnline = body.hostel === "ONLINE";
 
     const normalizedPayload = {
       eventname: body.name,
-      event_description: body.description,
+      description: body.description, // 💡 Fixed key name matching service expectations
       is_online: isOnline,
-      hostel_name: body.hostel, // Will be stored cleanly as "ONLINE"
+      hostel_name: body.hostel, 
       floor: isOnline ? 0 : Number(body.floor),
-      room_no: body.roomNumber?.trim() || "", // Holds our meeting URL string or room text
+      room_no: body.roomNumber?.trim() || "", 
       event_time: body.scheduledAt,
       duration_minutes: body.durationMinutes,
       max_attendees: Number(body.maxAttendees),

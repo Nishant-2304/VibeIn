@@ -14,6 +14,7 @@ import {
   Star
 } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "../../../lib/supabase/client";
 import {
   apiErrorMessage,
   type MyEventItem,
@@ -87,6 +88,7 @@ export default function PublicProfilePage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const supabase = createClient();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +98,10 @@ export default function PublicProfilePage() {
   const [attending, setAttending] = useState<MyEventItem[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [eventsError, setEventsError] = useState<string | null>(null);
+
+  // New action tracking states
+  const [messagingLoading, setMessagingLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -131,6 +137,13 @@ export default function PublicProfilePage() {
     let cancelled = false;
     setEventsLoading(true);
     setEventsError(null);
+
+    // Track active user profile reference
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session?.user) {
+        setCurrentUserId(session.user.id);
+      }
+    });
 
     userApi
       .getUserEvents(id)
@@ -172,6 +185,44 @@ export default function PublicProfilePage() {
       .slice(0, 4);
   }, [hosting, attending]);
 
+  // 💡 CHAT PROVISIONING HOOK: Handshakes with gateway controller to mount 1:1 chat view wrapper
+  const handleStartDM = async () => {
+    if (messagingLoading) return;
+    setMessagingLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch("/api/chat/rooms/dm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ targetUserId: id })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Redirect directly to the distinct DM view container page
+        router.push(`/chat/dm/${data.roomId}`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.message || "Could not instantiate chat thread channel.");
+      }
+    } catch (err) {
+      console.error("DM Provisioning lifecycle error:", err);
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
+
   if (loading) {
     return <ProfileSkeleton />;
   }
@@ -197,10 +248,12 @@ export default function PublicProfilePage() {
   const eventsHostedTotal: number = profile.eventsHosted ?? 0;
   const eventsAttendedTotal: number = profile.eventsAttended ?? 0;
 
+  // Render check: Don't show the messaging box button if you are looking at your own public sheet view card context
+  const isMe = currentUserId === id;
+
   return (
     <main className="flex-1 relative px-5 pt-6 pb-32 flex flex-col items-center bg-[#121212] min-h-screen select-none font-sans overflow-x-hidden">
 
-      {/* Absolute Top Spotlight */}
       <div className="absolute top-0 left-0 right-0 h-[340px] bg-gradient-to-b from-[#9b72cf] to-transparent pointer-events-none" />
 
       {/* ================= TOP HEADER ================= */}
@@ -223,19 +276,17 @@ export default function PublicProfilePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Mini User Avatar */}
           <div className="w-8 h-8 rounded-full bg-neutral-700 border border-white/20 flex items-center justify-center text-xs overflow-hidden">
             {profile.pfp}
           </div>
         </div>
       </div>
 
-      {/* ================= HERO AVATAR & INFO ================= */}
+      {/* ================= HERO AVATAR ================= */}
       <div className="relative mb-3 z-10 mt-2">
         <div className="w-28 h-28 rounded-full bg-neutral-800 border-2 border-[#b594e6] overflow-hidden shadow-2xl flex items-center justify-center text-5xl">
           {profile.pfp}
         </div>
-        {/* Verified Host Badge */}
         <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-[#9474cc] text-white flex items-center justify-center shadow-md border-2 border-[#121212]">
           <CheckCircle2 className="w-5 h-5 text-white stroke-[2.5]" />
         </div>
@@ -255,7 +306,6 @@ export default function PublicProfilePage() {
 
       {/* ================= RATINGS ROW ================= */}
       <div className="w-full flex gap-3 mb-4 z-10">
-        {/* Host Rating Card */}
         <div className="flex-1 min-h-[104px] bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1 text-center leading-tight">
@@ -276,7 +326,6 @@ export default function PublicProfilePage() {
           </p>
         </div>
 
-        {/* Guest Rating Card */}
         <div className="flex-1 min-h-[104px] bg-[#1e1e1e] border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center shadow-lg">
           <div className="flex flex-col items-center">
             <span className="text-[10px] font-bold tracking-wider text-gray-400 uppercase mb-1 text-center leading-tight">
@@ -298,12 +347,11 @@ export default function PublicProfilePage() {
         </div>
       </div>
 
-      {/* ================= HOSTED / ATTENDED CAPSULE ================= */}
+      {/* ================= STATS CAPSULE ================= */}
       <div className="w-full bg-[#262015] border border-[#c78d1a]/30 rounded-2xl p-4 flex items-center gap-4 mb-8 shadow-lg z-10">
         <div className="p-3 bg-[#c78d1a]/15 rounded-xl text-[#e6aa32] shrink-0">
           <PartyPopper className="w-6 h-6 stroke-[2]" />
         </div>
-
         <div className="flex-1 flex items-center justify-around divide-x divide-white/10 text-center">
           <div className="px-2">
             <span className="font-display font-black text-xl text-white block">{eventsHostedTotal}</span>
@@ -316,7 +364,7 @@ export default function PublicProfilePage() {
         </div>
       </div>
 
-      {/* ================= RECENT ACTIVITY SECTION ================= */}
+      {/* ================= RECENT ACTIVITY ================= */}
       <div className="w-full z-10 mb-8">
         <div className="flex items-center justify-between mb-3 px-1">
           <h2
@@ -341,18 +389,12 @@ export default function PublicProfilePage() {
           ) : eventsError ? (
             <div className="w-full flex flex-col items-center justify-center py-8 gap-2 bg-[#1e1e1e]/50 rounded-2xl border border-white/5 text-center px-4">
               <AlertCircle className="w-6 h-6 text-red-400" />
-              <p className="text-red-300 text-xs font-semibold">
-                Couldn&apos;t load activity.
-              </p>
-              <p className="text-gray-400 text-[11px] font-medium max-w-xs">
-                {eventsError}
-              </p>
+              <p className="text-red-300 text-xs font-semibold">Couldn&apos;t load activity.</p>
+              <p className="text-gray-400 text-[11px] font-medium max-w-xs">{eventsError}</p>
             </div>
           ) : recentActivity.length === 0 ? (
             <div className="w-full text-center py-10 bg-[#1e1e1e]/50 rounded-2xl border border-white/5">
-              <p className="text-gray-400 font-medium text-sm">
-                No recent activity yet.
-              </p>
+              <p className="text-gray-400 font-medium text-sm">No recent activity yet.</p>
             </div>
           ) : (
             recentActivity.map((event, index) => (
@@ -367,50 +409,34 @@ export default function PublicProfilePage() {
                 floor={event.floor}
                 scheduledAt={event.event_time}
                 timeAgo={timeAgo(event.event_time)}
-                bgColor={
-                  PUBLIC_PROFILE_COLOR_ORDER[
-                    index % PUBLIC_PROFILE_COLOR_ORDER.length
-                  ]
-                }
-                icon={
-                  event.role === "hosting" ? (
-                    <PartyPopper className="w-4 h-4 text-white/80" />
-                  ) : (
-                    <History className="w-4 h-4 text-white/80" />
-                  )
-                }
+                bgColor={PUBLIC_PROFILE_COLOR_ORDER[index % PUBLIC_PROFILE_COLOR_ORDER.length]}
+                icon={event.role === "hosting" ? <PartyPopper className="w-4 h-4 text-white/80" /> : <History className="w-4 h-4 text-white/80" />}
               />
             ))
           )}
         </div>
       </div>
 
-      {/* ================= BOTTOM ACTION CTAS ================= */}
-      <div className="w-full space-y-3 z-10 mt-auto">
-        {/* Primary Message CTA */}
-        <Link
-          href="/chat"
-          className="w-full py-4 rounded-2xl bg-[#c8aaf5] hover:bg-[#b894ec] text-[#2c124d] font-bold text-base shadow-[0_4px_20px_rgba(200,170,245,0.3)] transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <MessageSquare className="w-5 h-5 stroke-[2.5]" />
-          <span>Send a Message</span>
-        </Link>
-
-        {/* Secondary Report CTA */}
-        {/*<button
-          type="button"
-          className="w-full py-3.5 rounded-2xl bg-[#1a1212] border border-red-500/30 hover:bg-red-500/10 text-red-400 font-semibold text-sm transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <AlertCircle className="w-4 h-4 stroke-[2]" />
-          <span>Report Profile</span>
-        </button>*/}
-      </div>
+      {/* ================= ACTION BAR LAYER ================= */}
+      {!isMe && (
+        <div className="w-full space-y-3 z-10 mt-auto">
+          {/* 💡 THE TRIGGER ACTION BUTTON: Clicking this provisions the room dynamically */}
+          <button
+            type="button"
+            disabled={messagingLoading}
+            onClick={handleStartDM}
+            className="w-full py-4 rounded-2xl bg-[#c8aaf5] hover:bg-[#b894ec] text-[#2c124d] font-bold text-base shadow-[0_4px_20px_rgba(200,170,245,0.3)] transition active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <MessageSquare className="w-5 h-5 stroke-[2.5]" />
+            <span>{messagingLoading ? "Opening Conversation..." : "Send a Message"}</span>
+          </button>
+        </div>
+      )}
 
     </main>
   );
 }
 
-// Micro-component tailored specifically for compact history rows
 function RecentActivityCard({
   id,
   badge,

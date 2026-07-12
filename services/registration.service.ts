@@ -1,6 +1,7 @@
 import { AppError, BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors";
 import { AttendanceStatus, EventStatus } from "@prisma/client";
 import { RegistrationRepository } from "../repositories/registration.repository";
+import { prisma } from "@/lib/prisma";
 
 type Actor = {
   userId?: string | null;
@@ -71,16 +72,34 @@ export class RegistrationService {
     }
 
     if (existingRegistration?.attendance_status === AttendanceStatus.CANCELLED) {
-      return RegistrationRepository.setAttendanceStatus(
+      const updatedReg = await RegistrationRepository.setAttendanceStatus(
         existingRegistration.id,
         AttendanceStatus.REGISTERED
       );
+
+      // 🚀 EVENT-DRIVEN ACTION: Auto-add user back into the chat room upon re-registration
+      await prisma.chatMember.upsert({
+        where: { roomId_userId: { roomId: eventId, userId } },
+        update: {},
+        create: { roomId: eventId, userId },
+      }).catch(err => console.error("Failed to add user to chat room:", err));
+
+      return updatedReg;
     }
 
-    return RegistrationRepository.create({
+    const newReg = await RegistrationRepository.create({
       event_id: eventId,
       user_id: userId,
     });
+
+    // 🚀 EVENT-DRIVEN ACTION: Auto-add user to the chat room on new registration
+    await prisma.chatMember.upsert({
+      where: { roomId_userId: { roomId: eventId, userId } },
+      update: {},
+      create: { roomId: eventId, userId },
+    }).catch(err => console.error("Failed to add user to chat room:", err));
+
+    return newReg;
   }
 
   static async cancelRegistration(userId: string | null | undefined, eventId: string) {
@@ -119,6 +138,11 @@ export class RegistrationService {
     }
 
     await RegistrationRepository.setAttendanceStatus(registration.id, AttendanceStatus.CANCELLED);
+
+    // 🚀 EVENT-DRIVEN ACTION: Kick the user out of the chat room upon cancellation
+    await prisma.chatMember.deleteMany({
+      where: { roomId: eventId, userId }
+    }).catch(err => console.error("Failed to remove user from chat room:", err));
 
     return { message: "Registration cancelled." };
   }
