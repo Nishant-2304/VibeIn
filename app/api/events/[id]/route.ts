@@ -12,8 +12,9 @@ import { RegistrationRepository } from "../../../../repositories/registration.re
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   // Authentication is optional here. Private event details (e.g. roomNumber)
   // are only returned to the host, admins, or registered participants.
   let currentUser: Awaited<ReturnType<typeof requireAuth>> | null = null;
@@ -30,7 +31,7 @@ export async function GET(
   }
 
   try {
-    const event = await EventService.getEventById(params.id);
+    const event = await EventService.getEventById(id);
     let includeRoomNumber = false;
 
     if (currentUser) {
@@ -40,7 +41,7 @@ export async function GET(
       if (!includeRoomNumber) {
         const registration = await RegistrationRepository.findByUserAndEvent(
           currentUser.id,
-          params.id
+          id
         );
 
         includeRoomNumber =
@@ -57,9 +58,10 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const currentUser = await requireAuth(request);
     const body = await request.json().catch(() => null);
 
@@ -69,7 +71,7 @@ export async function PATCH(
 
     const actor = { userId: currentUser.id };
 
-    const event = await EventService.updateEvent(params.id, body, actor);
+    const event = await EventService.updateEvent(id, body, actor);
 
     return jsonResponse(formatEventMutation(event));
   } catch (error) {

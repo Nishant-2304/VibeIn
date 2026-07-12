@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, X, Users, MapPin } from "lucide-react";
 import { ParticipantsSkeleton } from "../../../../components/ui/SkeletonScreens";
 import {
@@ -21,8 +21,9 @@ const PARTICIPANT_CARD_COLORS = [
 export default function EventParticipantsPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +37,8 @@ export default function EventParticipantsPage({
     async function load() {
       try {
         const [eventData, registrationData] = await Promise.all([
-          eventApi.get(params.id),
-          eventApi.registrations(params.id),
+          eventApi.get(id),
+          eventApi.registrations(id),
         ]);
 
         if (!active) return;
@@ -60,7 +61,7 @@ export default function EventParticipantsPage({
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   const stats = useMemo(() => {
     return {
@@ -89,7 +90,7 @@ export default function EventParticipantsPage({
     setUpdatingUserId(userId);
 
     try {
-      await eventApi.updateAttendance(params.id, userId, status);
+      await eventApi.updateAttendance(id, userId, status);
 
       setRegistrations((current) =>
         current.map((registration) =>
@@ -118,7 +119,7 @@ export default function EventParticipantsPage({
         <p>{pageError || "Could not load participants."}</p>
 
         <Link
-          href={`/events/${params.id}`}
+          href={`/events/${id}`}
           className="mt-5 inline-block text-[#b792ea]"
         >
           Back to Event
@@ -132,7 +133,7 @@ export default function EventParticipantsPage({
 
         <header className="flex items-center gap-4">
           <Link
-            href={`/events/${params.id}`}
+            href={`/events/${id}`}
             aria-label="Back to event"
             className="rounded-full bg-[#171717] p-2.5 text-[#c9b0ff] transition active:scale-95 cursor-pointer"
           >
@@ -326,7 +327,7 @@ export default function EventParticipantsPage({
 
         {event.status === "COMPLETED" && (
           <Link
-            href={`/events/${params.id}/participants/reviews`}
+            href={`/events/${id}/participants/reviews`}
             className="mt-8 flex w-full items-center justify-center rounded-2xl bg-[#b792ea] py-4 font-semibold text-[#3b2466] hover:bg-[#a37dd6] transition active:scale-[0.98] cursor-pointer"
           >
             Review Participants

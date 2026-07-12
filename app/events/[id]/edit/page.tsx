@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, use, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { FormPageSkeleton } from "../../../../components/ui/SkeletonScreens";
 import {
@@ -72,7 +72,8 @@ function shallowEqualForm(a: FormState, b: FormState) {
   );
 }
 
-export default function EditEventPage({ params }: { params: { id: string } }) {
+export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [original, setOriginal] = useState<FormState | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -116,7 +117,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     setLoading(true);
     setError(null);
     eventApi
-      .get(params.id)
+      .get(id)
       .then((data) => {
         if (!active) return;
         const initial = detailToForm(data);
@@ -128,7 +129,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   const allowedHostels = getHostelsForGender(userGender);
 
@@ -162,7 +163,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
 
     // If nothing changed, just go back to the event page (no PATCH).
     if (original && !isDirty) {
-      router.push(`/events/${params.id}`);
+      router.push(`/events/${id}`);
       return;
     }
 
@@ -214,8 +215,8 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       if (!original || form.durationMinutes !== original.durationMinutes)
         patch.durationMinutes = durationMinutes;
 
-      await eventApi.update(params.id, patch);
-      router.push(`/events/${params.id}`);
+      await eventApi.update(id, patch);
+      router.push(`/events/${id}`);
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {
@@ -234,7 +235,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-md px-5 py-6">
         <header className="flex items-center gap-4">
-          <Link href={`/events/${params.id}`} aria-label="Back">
+          <Link href={`/events/${id}`} aria-label="Back">
             <ArrowLeft className="text-[#b792ea]" />
           </Link>
           <h1 className="text-[22px] font-extrabold">Edit Event</h1>
@@ -295,7 +296,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
             </button>
             <button
               type="button"
-              onClick={() => router.push(`/events/${params.id}`)}
+              onClick={() => router.push(`/events/${id}`)}
               disabled={submitting}
               className="w-full rounded-2xl border border-white/15 bg-transparent py-4 font-semibold text-white disabled:opacity-60"
             >

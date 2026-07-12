@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useChatSocket } from "../../../hooks/useChatSocket";
 import { ArrowLeft, Send, User } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-export default function DirectMessageRoomPage({ params }: { params: { id: string } }) {
-  const roomId = params.id;
+export default function DirectMessageRoomPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: roomId } = use(params);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);

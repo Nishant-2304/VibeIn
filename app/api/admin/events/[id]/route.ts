@@ -8,11 +8,12 @@ import { requireAdmin } from "../../../../../lib/auth";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireAdmin(request);
-    const { event, reports } = await AdminService.getEventDetail(params.id);
+    const { event, reports } = await AdminService.getEventDetail(id);
 
     return jsonResponse(formatAdminEventDetail(event, reports));
   } catch (error) {
@@ -22,11 +23,12 @@ export async function GET(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireAdmin(request);
-    return jsonResponse(await AdminService.deleteEvent(params.id));
+    return jsonResponse(await AdminService.deleteEvent(id));
   } catch (error) {
     return handleRouteError(error);
   }

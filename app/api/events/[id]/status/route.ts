@@ -9,9 +9,10 @@ import { requireAuth } from "../../../../../lib/auth";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const currentUser = await requireAuth(request);
     const body = await request.json().catch(() => null);
 
@@ -24,8 +25,8 @@ export async function PATCH(
       isAdmin: currentUser.role === "ADMIN",
     };
 
-    await EventService.updateEventStatus(params.id, body, actor);
-    const event = await EventService.getEventById(params.id);
+    await EventService.updateEventStatus(id, body, actor);
+    const event = await EventService.getEventById(id);
 
     return jsonResponse(formatEventDetail(event, true));
   } catch (error) {

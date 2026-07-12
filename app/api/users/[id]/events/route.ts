@@ -14,15 +14,16 @@ import { handleRouteError, json } from "../../route-utils";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
     const status = searchParams.get("status");
 
     const type = parseRole(role);
-    const events = await UserService.getUserEvents(params.id, type);
+    const events = await UserService.getUserEvents(id, type);
     const response: Record<string, unknown> = {};
 
     if ("hosted" in events) {

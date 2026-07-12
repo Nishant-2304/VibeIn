@@ -15,10 +15,11 @@ import {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reviews = await ReviewService.getEventReviews(params.id);
+    const { id } = await params;
+    const reviews = await ReviewService.getEventReviews(id);
 
     return json({
       reviews: reviews.eventReviews.map(toEventReviewResponse),
@@ -34,9 +35,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const token = getBearerToken(request);
 
     if (!token) {
@@ -47,7 +49,7 @@ export async function POST(
     const body = await request.json();
     const review = await ReviewService.createReview(
       currentUser.id,
-      params.id,
+      id,
       body
     );
 

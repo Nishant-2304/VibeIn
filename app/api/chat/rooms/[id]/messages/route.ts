@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { ChatService } from "@/services/chat.service";
 import { requireAuth } from "@/lib/auth";
 import { ValidationError, ForbiddenError } from "@/utils/errors";
-import { prisma } from "@/lib/prisma"; // 💡 Swap this path with your project's actual prisma instance path (e.g., @/lib/prisma)
+import { prisma } from "@/lib/prisma";
 
 async function ensureRoomAndMembership(roomId: string, userId: string) {
   // 1. First, make sure the actual ChatRoom row exists in the database
@@ -34,16 +34,17 @@ async function ensureRoomAndMembership(roomId: string, userId: string) {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const currentUser = await requireAuth(request);
     const { searchParams } = new URL(request.url);
-    
+
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const skip = parseInt(searchParams.get("skip") || "0", 10);
 
-    const messages = await ChatService.getRoomMessages(params.id, currentUser.id, limit, skip);
+    const messages = await ChatService.getRoomMessages(id, currentUser.id, limit, skip);
     return NextResponse.json(messages, { status: 200 });
   } catch (error: any) {
     // 🔒 Catch the membership guard rejection and throw a clean 403 Forbidden status
@@ -57,9 +58,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const currentUser = await requireAuth(request);
     const body = await request.json().catch(() => null);
 
@@ -67,13 +69,12 @@ export async function POST(
       throw new ValidationError("Message content string is required.");
     }
 
-    const savedMessage = await ChatService.sendMessage(params.id, currentUser.id, body.content);
+    const savedMessage = await ChatService.sendMessage(id, currentUser.id, body.content);
 
-    // Detached fire-and-forget real-time broadcasting logic
-    (async () => {
+    after(async () => {
       try {
         const roomRooms = await ChatService.getUserRooms(currentUser.id);
-        const currentRoom = roomRooms.find(r => r.id === params.id);
+        const currentRoom = roomRooms.find(r => r.id === id);
         const targetUserIds = currentRoom?.members.map(m => m.userId) || [];
 
         const controller = new AbortController();
@@ -83,13 +84,13 @@ export async function POST(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ targetUserIds, message: savedMessage }),
-          signal: controller.signal
+          signal: controller.signal,
         });
         clearTimeout(timeoutId);
       } catch (err) {
         console.error("Broadcast skipped:", err);
       }
-    })();
+    });
 
     return NextResponse.json(savedMessage, { status: 201 });
   } catch (error: any) {

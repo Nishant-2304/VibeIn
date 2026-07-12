@@ -17,13 +17,14 @@ import { RegistrationRepository } from "../../../../../../repositories/registrat
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string; userId: string } }
+  { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
+    const { id, userId } = await params;
     const currentUser = await requireAuth(request);
     const registration = await RegistrationRepository.findByUserAndEvent(
-      params.userId,
-      params.id
+      userId,
+      id
     );
 
     if (!registration) {
@@ -33,11 +34,11 @@ export async function GET(
     // Hosts can view any participant's registration on their own events;
     // admins can view any registration; participants may view their own.
     const isAdmin = currentUser.role === "ADMIN";
-    const isSelf = currentUser.id === params.userId;
+    const isSelf = currentUser.id === userId;
 
     if (!isAdmin && !isSelf) {
       const event = await prisma.event.findUnique({
-        where: { id: params.id },
+        where: { id },
         select: { host_id: true },
       });
 
@@ -58,9 +59,10 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; userId: string } }
+  { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
+    const { id, userId } = await params;
     const currentUser = await requireAuth(request);
     const body = await request.json().catch(() => null);
 
@@ -74,8 +76,8 @@ export async function PATCH(
     };
 
     const registration = await RegistrationService.updateRegistrationStatus(
-      params.userId,
-      params.id,
+      userId,
+      id,
       body.attendanceStatus,
       actor
     );

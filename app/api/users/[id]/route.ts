@@ -8,10 +8,11 @@ import { handleRouteError, json, toPublicUser } from "../route-utils";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await UserService.getUserProfile(params.id);
+    const { id } = await params;
+    const user = await UserService.getUserProfile(id);
 
     return json(toPublicUser(user));
   } catch (error) {

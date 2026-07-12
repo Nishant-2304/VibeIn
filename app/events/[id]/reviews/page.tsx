@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { ArrowLeft, Send, Star } from "lucide-react";
 import { FormPageSkeleton } from "../../../../components/ui/SkeletonScreens";
 import { createClient } from "../../../../lib/supabase/client";
@@ -43,7 +43,8 @@ function Rating({
   );
 }
 
-export default function SubmitEventReviewPage({ params }: { params: { id: string } }) {
+export default function SubmitEventReviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [eventRating, setEventRating] = useState(0);
@@ -87,7 +88,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
       }
 
       try {
-        const data = await eventApi.get(params.id);
+        const data = await eventApi.get(id);
         if (!active) return;
 
         setEvent(data);
@@ -104,7 +105,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
         // eligibility rules as the event detail page.
         try {
           const registration = await eventApi.getRegistration(
-            params.id,
+            id,
             session.user.id
           );
           if (active) {
@@ -138,31 +139,31 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   // Bounce ineligible visitors back to the event detail page.
   useEffect(() => {
     if (!eligibilityChecked) return;
 
     if (isHost) {
-      router.replace(`/events/${params.id}`);
+      router.replace(`/events/${id}`);
       return;
     }
 
     if (alreadySubmitted) {
-      router.replace(`/events/${params.id}`);
+      router.replace(`/events/${id}`);
       return;
     }
 
     if (event && event.status !== "COMPLETED") {
-      router.replace(`/events/${params.id}`);
+      router.replace(`/events/${id}`);
       return;
     }
 
     if (attendanceStatus !== "ATTENDED") {
       // REGISTERED, NO_SHOW, CANCELLED, or null (not registered) all
       // bounce. The event detail page shows the appropriate message.
-      router.replace(`/events/${params.id}`);
+      router.replace(`/events/${id}`);
       return;
     }
   }, [
@@ -171,7 +172,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
     alreadySubmitted,
     event,
     attendanceStatus,
-    params.id,
+    id,
     router,
   ]);
 
@@ -199,13 +200,13 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
 
     setSubmitting(true);
     try {
-      await eventApi.submitEventReview(params.id, {
+      await eventApi.submitEventReview(id, {
         eventRating,
         eventComment: eventComment.trim() || undefined,
         hostRating,
         hostComment: hostComment.trim() || undefined,
       });
-      router.replace(`/events/${params.id}`);
+      router.replace(`/events/${id}`);
     } catch (cause) {
       setError(apiErrorMessage(cause));
     } finally {
@@ -221,7 +222,7 @@ export default function SubmitEventReviewPage({ params }: { params: { id: string
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-md px-5 py-6 pb-10">
         <header className="flex items-center gap-3">
-          <Link href={`/events/${params.id}`} aria-label="Back to event" className="rounded-full bg-[#171717] p-2.5 text-[#c9b0ff]">
+          <Link href={`/events/${id}`} aria-label="Back to event" className="rounded-full bg-[#171717] p-2.5 text-[#c9b0ff]">
             <ArrowLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-[22px] font-extrabold">Submit Review</h1>

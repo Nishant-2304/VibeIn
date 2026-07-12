@@ -4,16 +4,17 @@ import { requireAuth } from "@/lib/auth";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // 1. Authenticate the incoming request
     const currentUser = await requireAuth(request);
 
     // 2. Fetch the specific room ensuring the requesting user is a member
     const room = await prisma.chatRoom.findFirst({
       where: {
-        id: params.id,
+        id,
         members: {
           some: {
             userId: currentUser.id,

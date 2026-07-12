@@ -10,9 +10,10 @@ import { requireAuth } from "../../../../../lib/auth";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const currentUser = await requireAuth(request);
     const actor = {
       userId: currentUser.id,
@@ -20,7 +21,7 @@ export async function GET(
     };
 
     const registrations = await RegistrationService.getEventRegistrations(
-      params.id,
+      id,
       actor
     );
 
@@ -34,13 +35,14 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const currentUser = await requireAuth(request);
     const registration = await RegistrationService.registerForEvent(
       currentUser.id,
-      params.id
+      id
     );
 
     return jsonResponse(formatRegistration(registration), 201);

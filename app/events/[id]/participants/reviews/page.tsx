@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Star } from "lucide-react";
 import { ParticipantsSkeleton } from "../../../../../components/ui/SkeletonScreens";
@@ -14,7 +14,8 @@ import {
 
 type Draft = { rating: number; comment: string };
 
-export default function SubmitParticipantReviewsPage({ params }: { params: { id: string } }) {
+export default function SubmitParticipantReviewsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -27,7 +28,7 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
 
   useEffect(() => {
     let active = true;
-    Promise.all([eventApi.get(params.id), eventApi.registrations(params.id)])
+    Promise.all([eventApi.get(id), eventApi.registrations(id)])
       .then(([eventData, registrationData]) => {
         if (!active) return;
         const eligible = registrationData.registrations.filter((registration) =>
@@ -43,7 +44,7 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   function changeDraft(userId: string, patch: Partial<Draft>) {
     setDrafts((current) => ({
@@ -62,12 +63,12 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
     setSubmitting((current) => ({ ...current, [userId]: true }));
     setErrors((current) => ({ ...current, [userId]: "" }));
     try {
-      await eventApi.submitParticipantReview(params.id, userId, {
+      await eventApi.submitParticipantReview(id, userId, {
         rating: draft.rating,
         comment: draft.comment.trim() || undefined,
       });
       setSubmitted((current) => ({ ...current, [userId]: true }));
-      router.replace(`/events/${params.id}`);
+      router.replace(`/events/${id}`);
     } catch (cause) {
       setErrors((current) => ({ ...current, [userId]: apiErrorMessage(cause) }));
     } finally {
@@ -83,7 +84,7 @@ export default function SubmitParticipantReviewsPage({ params }: { params: { id:
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto w-full max-w-md px-5 py-6 pb-10">
         <header className="flex items-center gap-4">
-          <Link href={`/events/${params.id}`} aria-label="Back to event"><ArrowLeft className="text-[#b792ea]" /></Link>
+          <Link href={`/events/${id}`} aria-label="Back to event"><ArrowLeft className="text-[#b792ea]" /></Link>
           <div>
             <h1 className="text-xl font-extrabold">Review participants</h1>
             {event && <p className="text-sm text-[#9ca3af]">{event.name}</p>}

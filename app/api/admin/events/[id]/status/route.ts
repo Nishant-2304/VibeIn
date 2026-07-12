@@ -9,9 +9,10 @@ import { requireAdmin } from "../../../../../../lib/auth";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await requireAdmin(request);
 
     const body = await request.json().catch(() => null);
@@ -20,7 +21,7 @@ export async function PATCH(
       return errorResponse("VALIDATION_ERROR", "Request body must be JSON.", 400);
     }
 
-    const updatedEvent = await AdminService.updateEventStatus(params.id, body);
+    const updatedEvent = await AdminService.updateEventStatus(id, body);
 
     return jsonResponse(formatEvent(updatedEvent));
   } catch (error) {

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { Calendar, MapPin, Star, Zap, ArrowLeft, Pencil, ArrowRight, MessageSquare } from "lucide-react";
 import { EventDetailSkeleton } from "../../../components/ui/SkeletonScreens";
 import { createClient } from "../../../lib/supabase/client";
@@ -21,8 +21,9 @@ function isAuthError(error: unknown) {
 export default function EventDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   const router = useRouter();
 
   const [event, setEvent] = useState<EventDetail | null>(null);
@@ -51,7 +52,7 @@ export default function EventDetailPage({
 
     async function loadData() {
       try {
-        const eventData = await eventApi.get(params.id);
+        const eventData = await eventApi.get(id);
         if (!active) return;
 
         setEvent(eventData);
@@ -69,7 +70,7 @@ export default function EventDetailPage({
             try {
               const registration =
                 await eventApi.getRegistration(
-                  params.id,
+                  id,
                   session.user.id
                 );
 
@@ -104,7 +105,7 @@ export default function EventDetailPage({
     return () => {
       active = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   const date = useMemo(
     () =>
@@ -186,7 +187,7 @@ export default function EventDetailPage({
     setNotice(null);
 
     try {
-      await eventApi.register(params.id);
+      await eventApi.register(id);
 
       setEvent((current) =>
         current
@@ -215,7 +216,7 @@ export default function EventDetailPage({
     setNotice(null);
 
     try {
-      await eventApi.unregister(params.id);
+      await eventApi.unregister(id);
 
       setEvent((current) =>
         current
@@ -250,7 +251,7 @@ export default function EventDetailPage({
 
     try {
       const updatedEvent = await eventApi.updateStatus(
-        params.id,
+        id,
         newStatus
       );
 
@@ -262,7 +263,7 @@ export default function EventDetailPage({
         setNotice("Event started.");
       } else if (newStatus === "COMPLETED") {
         router.push(
-          `/events/${params.id}/participants/reviews`
+          `/events/${id}/participants/reviews`
         );
       }
     } catch (cause) {
@@ -463,7 +464,7 @@ export default function EventDetailPage({
               {isRegistered && (event.status === "UPCOMING" || event.status === "ACTIVE") ? (
                 <div className="flex flex-col gap-2.5">
                   <Link
-                    href={`/events/${params.id}/chat`}
+                    href={`/events/${id}/chat`}
                     className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#b792ea] hover:bg-[#a67fd3] font-display font-black text-xl tracking-wider text-black transition-all active:scale-[0.99] shadow-[0_4px_25px_rgba(183,146,234,0.3)]"
                   >
                     Join Group Chat
@@ -516,7 +517,7 @@ export default function EventDetailPage({
                 ) : attendanceStatus === "ATTENDED" ? (
                   <button
                     type="button"
-                    onClick={() => router.push(`/events/${params.id}/reviews`)}
+                    onClick={() => router.push(`/events/${id}/reviews`)}
                     className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#1e1e1e] hover:bg-white/10 text-white border border-white/10 font-display font-black text-xl tracking-wider transition-all active:scale-[0.99] shadow-md cursor-pointer"
                   >
                     Submit Review
@@ -543,7 +544,7 @@ export default function EventDetailPage({
               
               {/* Manage Attendees Card */}
               <Link
-                href={`/events/${params.id}/participants`}
+                href={`/events/${id}/participants`}
                 className="block w-full rounded-[24px] p-5 shadow-lg transition-transform active:scale-[0.99] select-none text-white relative overflow-hidden"
                 style={{ backgroundColor: manageAttendeesBgColor }}
               >
@@ -610,7 +611,7 @@ export default function EventDetailPage({
                     <div className="flex flex-col gap-3">
                       {/* 💡 HOST CHAT GATEWAY: Renders a dedicated button for the host since they are always room admins */}
                       <Link
-                        href={`/events/${params.id}/chat`}
+                        href={`/events/${id}/chat`}
                         className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#b792ea]/40 bg-[#b792ea]/10 hover:bg-[#b792ea]/20 font-display font-black text-xl tracking-wider text-[#c8aaf5] transition-all active:scale-[0.99] shadow-sm mb-1"
                       >
                         Open Event Chat
