@@ -76,7 +76,8 @@ function toCardProps(
   event: EventListItem,
   colorOrder: readonly string[],
   index: number,
-  onJoin: (id: string, e: React.MouseEvent) => void
+  onJoin: (id: string, e: React.MouseEvent) => void,
+  isRegistered: boolean
 ): EventCardProps {
   return {
     id: event.id,
@@ -87,6 +88,7 @@ function toCardProps(
     time: formatScheduledAt(event.scheduledAt),
     bgColor: colorOrder[index % colorOrder.length],
     onJoin,
+    joinLabel: isRegistered ? "Registered" : "Join!",
     statusLabel: event.status,
   };
 }
@@ -101,6 +103,7 @@ export default function HomePage() {
   // Alert Banner State
   const [pendingCount, setPendingCount] = useState(2);
   const [registeredEventName, setRegisteredEventName] = useState<string | null>(null);
+  const [registeredEventIds, setRegisteredEventIds] = useState<Set<string>>(new Set());
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -204,6 +207,37 @@ export default function HomePage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    userApi
+      .getMyEvents({ role: "attending" })
+      .then((response) => {
+        if (cancelled) return;
+        setRegisteredEventIds(
+          new Set(
+            (response.attending ?? [])
+              .filter((event) => {
+                const status =
+                  event.attendanceStatus ??
+                  (event as { attendance_status?: string }).attendance_status;
+                return status !== "CANCELLED";
+              })
+              .map((event) => event.id)
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRegisteredEventIds(new Set());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // 1. Autoplay Carousel Logic (Scrolls every 3.5s unless touched)
   useEffect(() => {
     if (isPaused || !carouselRef.current) return;
@@ -231,6 +265,11 @@ export default function HomePage() {
       await eventApi.register(eventId);
       const matchedEvent = happeningNow.find(evt => evt.id === eventId) || comingUp.find(evt => evt.id === eventId);
       setRegisteredEventName(matchedEvent?.name || "the event");
+      setRegisteredEventIds((current) => {
+        const next = new Set(current);
+        next.add(eventId);
+        return next;
+      });
       const updateAttendees = (list: EventListItem[]) =>
         list.map((evt) =>
           evt.id === eventId
@@ -251,8 +290,11 @@ export default function HomePage() {
 
   // Build card props with stable per-section color cycles.
   const happeningNowCards = useMemo(
-    () => happeningNow.map((e, i) => toCardProps(e, HAPPENING_NOW_COLOR_ORDER, i, handleJoin)),
-    [happeningNow, handleJoin]
+    () =>
+      happeningNow.map((e, i) =>
+        toCardProps(e, HAPPENING_NOW_COLOR_ORDER, i, handleJoin, registeredEventIds.has(e.id))
+      ),
+    [happeningNow, handleJoin, registeredEventIds]
   );
 
   const totalPages = Math.max(1, Math.ceil(comingUp.length / EVENTS_PER_PAGE));
@@ -260,8 +302,10 @@ export default function HomePage() {
     const start = currentPage * EVENTS_PER_PAGE;
     return comingUp
       .slice(start, start + EVENTS_PER_PAGE)
-      .map((e, i) => toCardProps(e, COMING_UP_COLOR_ORDER, start + i, handleJoin));
-  }, [comingUp, currentPage, handleJoin]);
+      .map((e, i) =>
+        toCardProps(e, COMING_UP_COLOR_ORDER, start + i, handleJoin, registeredEventIds.has(e.id))
+      );
+  }, [comingUp, currentPage, handleJoin, registeredEventIds]);
 
   const router = useRouter();
 

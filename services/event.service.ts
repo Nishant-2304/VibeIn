@@ -147,12 +147,13 @@ export class EventService {
       });
     }
 
-    // ── CRITICAL CHANGE: GENDER/HOSTEL SCOPE BYPASS FOR ONLINE VIBES ──
+    // ── CRITICAL CHANGE: GENDER/HOSTEL SCOPE BYPASS FOR ONLINE + OFFLINE CAMPUS VIBES ──
     if (filters.hostels && filters.hostels.length > 0) {
       andConditions.push({
         OR: [
           { hostel_name: { in: filters.hostels } },
-          { is_online: true } // 👈 Allows online events to pass through block filtering!
+          { is_online: true },
+          { hostel_name: { startsWith: "OFFLINE-" } },
         ],
       });
     }

@@ -173,13 +173,9 @@ export default function ProfilePage() {
       <SettingsItem icon={<Ticket className="w-5 h-5 text-[#f5c242]" />} label="My Events" />
     </Link>
 
-    {/* ================= NEW CONTACT US ROW ================= */}
-    <a 
-      href="mailto:support@vibein.com?subject=VibeIn%20Support%20Request&body=Hi%20VibeIn%20Team%2C%0A%0A%5BWrite%20your%20bug%20report%20or%20feedback%20here%5D" 
-      className="block"
-    >
+    <Link href="/contact" className="block">
       <SettingsItem icon={<Mail className="w-5 h-5 text-[#3d8ba8]" />} label="Contact Us" />
-    </a>
+    </Link>
 
     <button type="button" onClick={handleLogout} className="w-full text-left cursor-pointer">
       <div className="flex items-center justify-between p-4 px-5 hover:bg-white/5 transition active:bg-white/10">

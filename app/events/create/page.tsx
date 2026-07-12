@@ -21,13 +21,15 @@ import { getHostelsForGender } from "../../../lib/constants";
 import { createClient } from "../../../lib/supabase/client";
 
 type FormState = {
-  eventType: "PHYSICAL" | "ONLINE";
+  eventType: "PHYSICAL" | "ONLINE" | "OFFLINE";
   eventName: string;
   description: string;
   hostel: string;
   floor: string;
   room: string;
-  onlineLink: string; // New field for meeting/game room link
+  onlineLink: string;
+  offlineAudience: "YOUR_GENDER" | "CO_ED";
+  offlineLocation: string;
   dateTime: string;
   duration: string;
   maxAttendees: string;
@@ -50,8 +52,8 @@ const steps = [
   },
   {
     id: "hostel",
-    title: "Hostel Location",
-    subtitle: "Is this happening in a hostel block or online?",
+    title: "Event Location",
+    subtitle: "Pick where the vibe is happening: hostel room, campus common area, or online.",
     icon: MapPinned,
     placeholder: "Select Hostel",
   },
@@ -108,6 +110,8 @@ export default function CreateEventPage() {
     floor: "",
     room: "",
     onlineLink: "",
+    offlineAudience: "YOUR_GENDER",
+    offlineLocation: "",
     dateTime: "",
     duration: "1h",
     maxAttendees: "10",
@@ -165,13 +169,16 @@ export default function CreateEventPage() {
       case "eventName":
         return form.eventName.trim().length >= 3 ? "" : "Event name must be at least 3 characters.";
       case "hostel":
-        if (form.eventType === "ONLINE") return null; // Skip check for online
+        if (form.eventType === "ONLINE" || form.eventType === "OFFLINE") return null;
         if (!form.hostel) return "Please select a hostel.";
         if (!allowedHostels.includes(form.hostel)) return "Please select a valid hostel.";
         return "";
       case "floorRoom":
         if (form.eventType === "ONLINE") {
           return form.onlineLink.trim() ? "" : "Please provide a valid online meeting link or platform name.";
+        }
+        if (form.eventType === "OFFLINE") {
+          return form.offlineLocation.trim() ? "" : "Please provide an offline campus location for the event.";
         }
         if (!Number.isInteger(Number(form.floor)) || Number(form.floor) < 0) {
           return "Floor must be a whole number.";
@@ -210,15 +217,23 @@ export default function CreateEventPage() {
 
     try {
       const isOnline = form.eventType === "ONLINE";
+      const isOffline = form.eventType === "OFFLINE";
+      const normalizedHostel = isOnline
+        ? "ONLINE"
+        : isOffline
+          ? `OFFLINE-${form.offlineAudience}`
+          : form.hostel;
 
       const event = await eventApi.create({
         name: form.eventName.trim(),
         description: form.description.trim(),
-        // Pass "ONLINE" as the hostel block so the backend instantly flags it
-        hostel: isOnline ? "ONLINE" : form.hostel,
-        floor: isOnline ? 0 : Number(form.floor),
-        // Use your existing type-safe roomNumber parameter for either state
-        roomNumber: isOnline ? form.onlineLink.trim() : form.room.trim(),
+        hostel: normalizedHostel,
+        floor: isOnline || isOffline ? 0 : Number(form.floor),
+        roomNumber: isOnline
+          ? form.onlineLink.trim()
+          : isOffline
+            ? form.offlineLocation.trim()
+            : form.room.trim(),
         scheduledAt: new Date(form.dateTime).toISOString(),
         durationMinutes: durationMinutesByLabel[form.duration] ?? 60,
         maxAttendees: Math.max(2, Number.parseInt(form.maxAttendees, 10) || 2),
@@ -256,16 +271,24 @@ export default function CreateEventPage() {
       case "hostel":
         return (
           <div className="space-y-4">
-            {/* Segmented Switch for Event Environment */}
             <div className="w-full bg-[#16161A] p-1 rounded-xl flex items-center gap-1 border border-white/5">
               <button
                 type="button"
                 onClick={() => updateField("eventType", "PHYSICAL")}
-                className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${ // 👈 Changed from mt-8 to flex-1
+                className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
                   form.eventType === "PHYSICAL" ? "bg-[#b792ea] text-[#3b2466]" : "text-gray-400"
                 }`}
               >
                 In Hostel
+              </button>
+              <button
+                type="button"
+                onClick={() => updateField("eventType", "OFFLINE")}
+                className={`flex-1 py-2.5 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                  form.eventType === "OFFLINE" ? "bg-[#b792ea] text-[#3b2466]" : "text-gray-400"
+                }`}
+              >
+                Offline Event
               </button>
               <button
                 type="button"
@@ -292,6 +315,37 @@ export default function CreateEventPage() {
                   ))}
                 </select>
               </div>
+            ) : form.eventType === "OFFLINE" ? (
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-[#16161A] p-4">
+                <p className="text-[12px] font-semibold tracking-[0.18em] text-[#b792ea] uppercase">Audience</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => updateField("offlineAudience", "YOUR_GENDER")}
+                    className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                      form.offlineAudience === "YOUR_GENDER"
+                        ? "border-[#b792ea] bg-[#b792ea] text-[#3b2466]"
+                        : "border-white/10 bg-transparent text-white"
+                    }`}
+                  >
+                    Your Gender
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateField("offlineAudience", "CO_ED")}
+                    className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                      form.offlineAudience === "CO_ED"
+                        ? "border-[#b792ea] bg-[#b792ea] text-[#3b2466]"
+                        : "border-white/10 bg-transparent text-white"
+                    }`}
+                  >
+                    Co-ed
+                  </button>
+                </div>
+                <p className="text-[12px] leading-5 text-gray-400">
+                  This tells everyone whether the offline event is only for your gender or open to mixed participation.
+                </p>
+              </div>
             ) : (
               <div className="p-4 rounded-xl border border-dashed border-white/10 bg-[#16161A] flex items-center gap-3 text-gray-400 text-xs font-medium">
                 <Globe className="w-4 h-4 text-[#b792ea]" />
@@ -301,7 +355,30 @@ export default function CreateEventPage() {
           </div>
         );
       case "floorRoom":
-        return form.eventType === "PHYSICAL" ? (
+        if (form.eventType === "ONLINE") {
+          return (
+            <input
+              value={form.onlineLink}
+              onChange={(e) => updateField("onlineLink", e.target.value)}
+              placeholder="e.g. Discord Link, GMeets, or room code"
+              className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea] placeholder:text-white/20"
+            />
+          );
+        }
+
+        if (form.eventType === "OFFLINE") {
+          return (
+            <textarea
+              value={form.offlineLocation}
+              onChange={(e) => updateField("offlineLocation", e.target.value)}
+              placeholder="e.g. Open air stage, cafeteria lawn, auditorium foyer, sports ground"
+              rows={4}
+              className="w-full resize-none rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea] placeholder:text-white/20"
+            />
+          );
+        }
+
+        return (
           <div className="grid grid-cols-2 gap-3">
             <input
               type="number"
@@ -318,13 +395,6 @@ export default function CreateEventPage() {
               className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea]"
             />
           </div>
-        ) : (
-          <input
-            value={form.onlineLink}
-            onChange={(e) => updateField("onlineLink", e.target.value)}
-            placeholder="e.g. Discord Link, GMeets, or room code"
-            className="w-full rounded-2xl border border-white/15 bg-[#1c1c1e] px-4 py-4 text-[16px] text-white outline-none focus:border-[#b792ea] placeholder:text-white/20"
-          />
         );
       case "dateTime":
         return (
@@ -375,7 +445,7 @@ export default function CreateEventPage() {
 
   return (
   // We use max-h-fit to forcefully snap the container bounds down to match the input card elements
-  <main className="w-full min-h-screen bg-black text-white flex flex-col justify-start items-center">
+  <main className="create-event-page w-full min-h-[calc(100%+6rem)] -mb-24 bg-black text-white flex flex-col justify-start items-center">
     
     {/* 1. Changed flex-1 to !h-auto and !max-h-fit to prevent layout engine stretch.
       2. Set pb-32 to protect item scrolling from overlapping the floating system tab bar elements.
@@ -436,9 +506,11 @@ export default function CreateEventPage() {
             <p className="font-semibold text-white">Review Configuration</p>
             <p className="mt-2 font-bold text-[#b792ea]">{form.eventName || "Event name"}</p>
             <p>
-              {form.eventType === "ONLINE" 
-                ? `🌐 Online Event • Info: ${form.onlineLink || "---"}` 
-                : `🏢 ${form.hostel || "Hostel Block"} • Flr ${form.floor || "-"} • Rm ${form.room || "-"}`}
+              {form.eventType === "ONLINE"
+                ? `🌐 Online Event • Info: ${form.onlineLink || "---"}`
+                : form.eventType === "OFFLINE"
+                  ? `📍 Offline Event • ${form.offlineAudience === "CO_ED" ? "Co-ed" : "Your Gender"} • ${form.offlineLocation || "Location TBD"}`
+                  : `🏢 ${form.hostel || "Hostel Block"} • Flr ${form.floor || "-"} • Rm ${form.room || "-"}`}
             </p>
             <p>{form.dateTime || "Scheduled Time"}</p>
           </div>

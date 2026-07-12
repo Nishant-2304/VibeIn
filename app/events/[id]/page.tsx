@@ -155,6 +155,7 @@ export default function EventDetailPage({
     event.currentAttendees >= event.maxAttendees;
 
   const isOnline = event?.hostel === "ONLINE";
+  const isOffline = typeof event?.hostel === "string" && event.hostel.startsWith("OFFLINE-");
 
   const locationDetail =
     event?.roomNumber && !hideRoomNumberBecauseFull
@@ -162,6 +163,13 @@ export default function EventDetailPage({
       : event
       ? `Floor ${event.floor}`
       : "";
+
+  const offlineAudienceLabel =
+    event?.hostel === "OFFLINE-CO_ED"
+      ? "Co-ed"
+      : event?.hostel === "OFFLINE-YOUR_GENDER"
+        ? "Your Gender"
+        : null;
 
   const hostBgColor = "#9474cc";
   const manageAttendeesBgColor = "#3d8ba8";
@@ -362,13 +370,15 @@ export default function EventDetailPage({
                   </p>
                 </div>
               </a>
-            ) : isOnline ? (
+            ) : isOffline ? (
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
                   <MapPin className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-bold tracking-tight text-white">Online</p>
+                  <p className="font-bold tracking-tight text-[#b792ea]">OFFLINE CAMPUS EVENT</p>
+                  <p className="text-xs font-medium text-gray-400">{offlineAudienceLabel ?? "Campus event"}</p>
+                  <p className="text-xs font-medium text-gray-400">{locationDetail}</p>
                 </div>
               </div>
             ) : (

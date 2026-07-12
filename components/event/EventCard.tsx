@@ -26,6 +26,8 @@ export default function EventCard({
   joinLabel = "Join!",
   statusLabel,
 }: EventCardProps) {
+  const isRegistered = joinLabel === "Registered";
+
   // Maintained your rigid h-[210px] for horizontal carousel stability
   const cardClassName =
     "w-full h-[210px] rounded-3xl p-5 flex flex-col justify-between shadow-lg transition-transform active:scale-[0.99] select-none text-white relative overflow-hidden";
@@ -86,19 +88,25 @@ export default function EventCard({
             {time}
           </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (id && onJoin && joinLabel === "Join!") {
-                onJoin(id, e);
-              }
-            }}
-            className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
-          >
-            {joinLabel}
-          </button>
+          {isRegistered ? (
+            <span className="bg-black/35 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md shrink-0">
+              Registered
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (id && onJoin) {
+                  onJoin(id, e);
+                }
+              }}
+              className="bg-black hover:bg-neutral-800 text-white font-bold text-sm px-5 py-2 rounded-xl shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
+            >
+              {joinLabel}
+            </button>
+          )}
         </div>
       </div>
     </>
