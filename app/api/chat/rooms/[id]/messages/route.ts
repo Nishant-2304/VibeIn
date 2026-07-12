@@ -79,7 +79,7 @@ export async function POST(
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000);
 
-        await fetch("http://localhost:8080/api/internal/broadcast", {
+        await fetch("https://vibein-websockets-1.onrender.com/api/internal/broadcast", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ targetUserIds, message: savedMessage }),
