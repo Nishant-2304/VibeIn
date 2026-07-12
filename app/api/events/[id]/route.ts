@@ -8,21 +8,20 @@ import {
 import { EventService } from "../../../../services/event.service";
 import { requireAuth, getBearerToken } from "../../../../lib/auth";
 import { UnauthorizedError } from "../../../../utils/errors";
+import { RegistrationRepository } from "../../../../repositories/registration.repository";
 
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  // Authentication is optional here. Presence of a valid bearer token unlocks
-  // private event details (e.g. roomNumber). The same Supabase auth flow used
-  // throughout the app is reused.
-  let hasValidAuth = false;
+  // Authentication is optional here. Private event details (e.g. roomNumber)
+  // are only returned to the host, admins, or registered participants.
+  let currentUser: Awaited<ReturnType<typeof requireAuth>> | null = null;
   const token = getBearerToken(request);
 
   if (token) {
     try {
-      await requireAuth(request);
-      hasValidAuth = true;
+      currentUser = await requireAuth(request);
     } catch (error) {
       if (!(error instanceof UnauthorizedError)) {
         throw error;
@@ -32,8 +31,25 @@ export async function GET(
 
   try {
     const event = await EventService.getEventById(params.id);
+    let includeRoomNumber = false;
 
-    return jsonResponse(formatEventDetail(event, hasValidAuth));
+    if (currentUser) {
+      includeRoomNumber =
+        currentUser.role === "ADMIN" || event.host_id === currentUser.id;
+
+      if (!includeRoomNumber) {
+        const registration = await RegistrationRepository.findByUserAndEvent(
+          currentUser.id,
+          params.id
+        );
+
+        includeRoomNumber =
+          registration?.attendance_status === "REGISTERED" ||
+          registration?.attendance_status === "ATTENDED";
+      }
+    }
+
+    return jsonResponse(formatEventDetail(event, includeRoomNumber));
   } catch (error) {
     return handleRouteError(error);
   }

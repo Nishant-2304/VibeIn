@@ -39,7 +39,7 @@ const steps = [
     title: "Event Name",
     subtitle: "Give your vibe a clear name.",
     icon: PartyPopper,
-    placeholder: "e.g., Midnight Poker Night",
+    placeholder: "e.g., Midnight Movie RUN",
   },
   {
     id: "description",
@@ -165,7 +165,7 @@ export default function CreateEventPage() {
       case "eventName":
         return form.eventName.trim().length >= 3 ? "" : "Event name must be at least 3 characters.";
       case "hostel":
-        if (form.eventType === "ONLINE") return ""; // Skip check for online
+        if (form.eventType === "ONLINE") return null; // Skip check for online
         if (!form.hostel) return "Please select a hostel.";
         if (!allowedHostels.includes(form.hostel)) return "Please select a valid hostel.";
         return "";
