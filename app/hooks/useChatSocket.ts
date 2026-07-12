@@ -14,6 +14,7 @@ export function useChatSocket({ roomId, onMessageReceived }: UseChatSocketOption
   useEffect(() => {
     let active = true;
     let reconnectTimeout: NodeJS.Timeout;
+    let pingInterval: NodeJS.Timeout;
 
     async function connect() {
       try {
@@ -21,17 +22,30 @@ export function useChatSocket({ roomId, onMessageReceived }: UseChatSocketOption
         const { data: { session } } = await supabase.auth.getSession();
         if (!session || !active) return;
 
-        // 2. Point to your standalone socket server instance
-        // In production, swap 'localhost:8080' with your live service URL
-        // Make sure it looks clean like this:
-        const socketUrl = `ws://localhost:8080?token=${session.access_token}`;
+        const token = session.access_token;
+
+        // 2. Point to your standalone socket server instance and clean up the URL formatting
+        const rawUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "ws://localhost:10000";
+        const baseSocketUrl = rawUrl.replace(/^http/, "ws").replace(/\/$/, "");
         
+        // 3. Append the authenticated token cleanly as a encoded query parameter
+        const socketUrl = `${baseSocketUrl}?token=${encodeURIComponent(token)}`;
+        
+        console.log("🔌 Attempting connection to:", baseSocketUrl);
         const socket = new WebSocket(socketUrl);
         wsRef.current = socket;
 
         socket.onopen = () => {
-          if (active) setIsConnected(true);
-          console.log("🔌 Connected to VibeIn Chat Broker");
+          if (!active) return;
+          setIsConnected(true);
+          console.log("🟢 Connected to VibeIn Chat Broker");
+
+          // Start a heartbeat ping interval every 30 seconds to keep Render awake
+          pingInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "ping" }));
+            }
+          }, 30000);
         };
 
         socket.onmessage = (event) => {
@@ -48,6 +62,7 @@ export function useChatSocket({ roomId, onMessageReceived }: UseChatSocketOption
         };
 
         socket.onclose = () => {
+          clearInterval(pingInterval);
           if (active) {
             setIsConnected(false);
             console.log("❌ Connection lost. Retrying in 3 seconds...");
@@ -68,6 +83,7 @@ export function useChatSocket({ roomId, onMessageReceived }: UseChatSocketOption
     // Cleanup routines on component unmount
     return () => {
       active = false;
+      clearInterval(pingInterval);
       clearTimeout(reconnectTimeout);
       if (wsRef.current) {
         wsRef.current.close();
