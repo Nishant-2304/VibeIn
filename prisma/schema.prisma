@@ -103,7 +103,7 @@ model User {
 
   eventReviews  EventReview[]
   reports       Report[]
-
+  chatMembers ChatMember[]
   @@map("users")
 }
 
@@ -262,4 +262,41 @@ model Report {
   @@index([target_type, target_id])
 
   @@map("reports")
+}
+
+model ChatRoom {
+  id          String        @id @default(uuid())
+  name        String?       // Null for DMs, string for group names
+  isGroup     Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  members     ChatMember[]
+  messages    ChatMessage[]
+}
+
+model ChatMember {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String // Links to your User table's ID field
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  // 💡 ADD THIS LINE RIGHT HERE:
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId]) // Prevents a user from joining the same room twice
+}
+
+model ChatMessage {
+  id          String        @id @default(uuid())
+  roomId      String
+  senderId    String        // Links to your User table's ID field
+  content     String        @db.Text
+  createdAt   DateTime      @default(now())
+
+  // Relations
+  room        ChatRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }

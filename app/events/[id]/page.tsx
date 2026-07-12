@@ -1,11 +1,10 @@
-// app/events/[id]/page.tsx
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, MapPin, Star, Zap, ArrowLeft, Pencil, ArrowRight } from "lucide-react";
+import { Calendar, MapPin, Star, Zap, ArrowLeft, Pencil, ArrowRight, MessageSquare } from "lucide-react";
 import { EventDetailSkeleton } from "../../../components/ui/SkeletonScreens";
 import { createClient } from "../../../lib/supabase/client";
 import {
@@ -155,7 +154,6 @@ export default function EventDetailPage({
     event.status !== "COMPLETED" &&
     event.currentAttendees >= event.maxAttendees;
 
-  // Determine if it's an online event based on hostel name parameter
   const isOnline = event?.hostel === "ONLINE";
 
   const locationDetail =
@@ -342,7 +340,6 @@ export default function EventDetailPage({
               </div>
             </div>
 
-            {/* Interactive Switch for Online vs Physical Copy Link Handling */}
             {isOnline ? (
               <a
                 href={event.roomNumber.startsWith("http") ? event.roomNumber : `https://${event.roomNumber}`}
@@ -443,25 +440,44 @@ export default function EventDetailPage({
           {/* ================= PARTICIPANT CONTROLS ================= */}
           {!isHost && (
             <div className="mt-8 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => void (isRegistered ? unregister() : register())}
-                disabled={(!isRegistered && !registrationOpen) || registering || event.status === "COMPLETED" || event.status === "CANCELLED"}
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#c8aaf5] hover:bg-[#b894ec] font-display font-black text-xl tracking-wider text-[#2c124d] disabled:opacity-50 disabled:grayscale transition-all active:scale-[0.99] shadow-[0_4px_25px_rgba(155,114,207,0.3)]"
-              >
-                {registering
-                  ? (isRegistered ? "Unregistering..." : "Registering...")
-                  : event.status === "COMPLETED"
-                  ? "Event Completed"
-                  : event.status === "CANCELLED"
-                  ? "Event Cancelled"
-                  : isRegistered
-                  ? "Unregister"
-                  : registrationOpen
-                  ? "Register"
-                  : "Registration Closed"}
-                <Zap className="h-5 w-5 stroke-[2.5]" />
-              </button>
+              {/* 💡 CHAT ACTION LAYER: Automatically presents the chat gateway button once registered */}
+              {isRegistered && (event.status === "UPCOMING" || event.status === "ACTIVE") ? (
+                <div className="flex flex-col gap-2.5">
+                  <Link
+                    href={`/events/${params.id}/chat`}
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#b792ea] hover:bg-[#a67fd3] font-display font-black text-xl tracking-wider text-black transition-all active:scale-[0.99] shadow-[0_4px_25px_rgba(183,146,234,0.3)]"
+                  >
+                    Join Group Chat
+                    <MessageSquare className="h-5 w-5 fill-current" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => void unregister()}
+                    disabled={registering}
+                    className="text-xs text-red-400/60 hover:text-red-400 font-semibold tracking-wide py-2 transition active:scale-95"
+                  >
+                    Leave Event & Chat
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void register()}
+                  disabled={!registrationOpen || registering || event.status === "COMPLETED" || event.status === "CANCELLED"}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#c8aaf5] hover:bg-[#b894ec] font-display font-black text-xl tracking-wider text-[#2c124d] disabled:opacity-50 disabled:grayscale transition-all active:scale-[0.99] shadow-[0_4px_25px_rgba(155,114,207,0.3)]"
+                >
+                  {registering
+                    ? "Registering..."
+                    : event.status === "COMPLETED"
+                    ? "Event Completed"
+                    : event.status === "CANCELLED"
+                    ? "Event Cancelled"
+                    : registrationOpen
+                    ? "Register"
+                    : "Registration Closed"}
+                  <Zap className="h-5 w-5 stroke-[2.5]" />
+                </button>
+              )}
 
               {event.status === "COMPLETED" &&
                 (attendanceStatus === "REGISTERED" ? (
@@ -549,7 +565,6 @@ export default function EventDetailPage({
                 <div 
                   className="relative w-full rounded-[24px] p-5 shadow-lg select-none text-white overflow-hidden border border-[#9474cc]/30 bg-[#231b2e]"
                 >
-                  {/* Top Right Ribbon (Dynamic Event Status) */}
                   <div
                     className="absolute top-0 right-0 bg-[#c8aaf5] h-[44px] flex items-center justify-end pr-5 pl-8 rounded-tr-[24px] z-10 shadow-sm"
                     style={{ clipPath: "polygon(0% 0, 100% 0, 100% 100%, 25% 100%)" }}
@@ -561,7 +576,6 @@ export default function EventDetailPage({
                     </div>
                   </div>
 
-                  {/* Top Left: Title Structure */}
                   <div className="flex flex-col z-10 relative">
                     <span className="text-[11px] font-bold tracking-wider text-[#c8aaf5] uppercase mb-1 drop-shadow-sm">
                       Action Center
@@ -575,6 +589,15 @@ export default function EventDetailPage({
                     <div className="w-1/3 h-px bg-[#c8aaf5]/30 mb-5" />
                     
                     <div className="flex flex-col gap-3">
+                      {/* 💡 HOST CHAT GATEWAY: Renders a dedicated button for the host since they are always room admins */}
+                      <Link
+                        href={`/events/${params.id}/chat`}
+                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#b792ea]/40 bg-[#b792ea]/10 hover:bg-[#b792ea]/20 font-display font-black text-xl tracking-wider text-[#c8aaf5] transition-all active:scale-[0.99] shadow-sm mb-1"
+                      >
+                        Open Event Chat
+                        <MessageSquare className="h-5 w-5" />
+                      </Link>
+
                       {event.status === "UPCOMING" && (
                         <div>
                           <button

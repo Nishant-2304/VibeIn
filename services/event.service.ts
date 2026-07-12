@@ -258,7 +258,6 @@ export class EventService {
       throw new ValidationError("description must be a string.");
     }
 
-    // Dynamic checks: Only require hostel block rules if it is NOT an online event
     const isOnline = !!data.is_online;
     if (!isOnline && (typeof data.hostel_name !== "string" || data.hostel_name.trim().length === 0)) {
       throw new ValidationError("hostel is required for physical events.");
@@ -293,7 +292,8 @@ export class EventService {
 
     await assertUserCanCreateEvent(hostId);
 
-    return EventRepository.create({
+    // 1. Create the base Event record
+    const newEvent = await EventRepository.create({
       eventname: data.eventname.trim(),
       event_description: data.description?.trim() ?? "",
       is_online: isOnline,
@@ -305,8 +305,28 @@ export class EventService {
       duration_minutes: durationMinutes,
       max_attendees: maxAttendees,
     });
-  }
 
+    // 🚀 EVENT-DRIVEN ACTION: Auto-provision matching chat room container with same ID
+    try {
+      // Import your global single instance from its path (e.g., @/lib/prisma)
+      const { prisma } = require("@/lib/prisma"); 
+      
+      await prisma.chatRoom.create({
+        data: {
+          id: newEvent.id, // Direct 1:1 match
+          name: newEvent.eventname,
+          isGroup: true,
+          members: {
+            create: { userId: hostId } // Add the event host automatically
+          }
+        }
+      });
+    } catch (chatError: any) {
+      console.error("Non-blocking failure provisioning event chat room context:", chatError.message);
+    }
+
+    return newEvent;
+  }
   static async updateEvent(id: string, data: any, actor?: Actor) {
     const event = await EventRepository.findForMutationById(id);
 
