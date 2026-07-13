@@ -13,6 +13,12 @@ import {
   eventApi,
   type EventDetail,
 } from "../../../lib/client-api";
+import {
+  getRegisteredEventIds,
+  recordRegistered,
+  recordUnregistered,
+  subscribeRegistrationChanges,
+} from "../../../lib/registration-events";
 
 function isAuthError(error: unknown) {
   return error instanceof ApiError && error.status === 401;
@@ -50,6 +56,17 @@ export default function EventDetailPage({
 
     const supabase = createClient();
 
+    // If the user just registered for this event on another page
+    // (e.g. the home feed) before navigating here, the home page's
+    // `recordRegistered` call has already persisted that to sessionStorage.
+    // Apply it optimistically so the page doesn't briefly show "Register"
+    // while the server fetch is still in flight.
+    const previouslyRegistered = getRegisteredEventIds().has(id);
+    if (previouslyRegistered) {
+      setIsRegistered(true);
+      setAttendanceStatus("REGISTERED");
+    }
+
     async function loadData() {
       try {
         const eventData = await eventApi.get(id);
@@ -77,12 +94,15 @@ export default function EventDetailPage({
               if (active) {
                 setAttendanceStatus(registration.attendanceStatus);
                 setIsRegistered(
-                  registration.attendanceStatus === "REGISTERED" || 
+                  registration.attendanceStatus === "REGISTERED" ||
                   registration.attendanceStatus === "ATTENDED"
                 );
               }
             } catch {
-              if (active) {
+              // getRegistration 404s when the user isn't registered. Keep
+              // the optimistic value from sessionStorage if we had one;
+              // otherwise fall back to "not registered".
+              if (active && !previouslyRegistered) {
                 setIsRegistered(false);
                 setAttendanceStatus(null);
               }
@@ -102,8 +122,36 @@ export default function EventDetailPage({
 
     void loadData();
 
+    // React in real time when the user registers/unregisters on another
+    // open page (e.g. the home feed) while this page is mounted.
+    const unsubscribe = subscribeRegistrationChanges((change) => {
+      if (!active) return;
+      if (change.eventId !== id) return;
+      if (change.type === "registered") {
+        setIsRegistered(true);
+        setAttendanceStatus("REGISTERED");
+        setEvent((current) =>
+          current
+            ? { ...current, currentAttendees: current.currentAttendees + 1 }
+            : current
+        );
+      } else {
+        setIsRegistered(false);
+        setAttendanceStatus(null);
+        setEvent((current) =>
+          current
+            ? {
+                ...current,
+                currentAttendees: Math.max(0, current.currentAttendees - 1),
+              }
+            : current
+        );
+      }
+    });
+
     return () => {
       active = false;
+      unsubscribe();
     };
   }, [id]);
 
@@ -206,9 +254,27 @@ export default function EventDetailPage({
       setIsRegistered(true);
       setAttendanceStatus("REGISTERED");
       setNotice("You’re registered.");
+      // Persist + broadcast so any other open page sees the change too.
+      recordRegistered(id);
     } catch (cause) {
-      setError(apiErrorMessage(cause));
-      setErrorNeedsLogin(isAuthError(cause));
+      // If the user was actually already registered (race: another tab
+      // registered first), the server returns 409. Treat that as success
+      // so the UI snaps to the correct state and we don't show a confusing
+      // "already registered" error.
+      if (
+        cause instanceof ApiError &&
+        (cause.status === 409 ||
+          cause.message?.toLowerCase().includes("already registered"))
+      ) {
+        setIsRegistered(true);
+        setAttendanceStatus("REGISTERED");
+        setError(null);
+        setErrorNeedsLogin(false);
+        recordRegistered(id);
+      } else {
+        setError(apiErrorMessage(cause));
+        setErrorNeedsLogin(isAuthError(cause));
+      }
     } finally {
       setRegistering(false);
     }
@@ -243,6 +309,7 @@ export default function EventDetailPage({
       setIsRegistered(false);
       setAttendanceStatus(null);
       setNotice("You’ve unregistered.");
+      recordUnregistered(id);
     } catch (cause) {
       setError(apiErrorMessage(cause));
       setErrorNeedsLogin(isAuthError(cause));

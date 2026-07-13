@@ -9,6 +9,7 @@ import EventCard, { EventCardProps } from "../components/event/EventCard";
 import { EventCardSkeleton } from "../components/ui/SkeletonScreens";
 import { ApiError, eventApi, userApi, EventListItem, apiErrorMessage } from "../lib/client-api";
 import { createClient } from "../lib/supabase/client";
+import { recordRegistered, setRegisteredEventIds as persistRegisteredEventIds } from "../lib/registration-events";
 
 // Card color tokens come from global.css (@theme). Different sections can use
 // different "random-looking" but stable orders. The seed is fixed per section
@@ -216,18 +217,20 @@ export default function HomePage() {
       .getMyEvents({ role: "attending" })
       .then((response) => {
         if (cancelled) return;
-        setRegisteredEventIds(
-          new Set(
-            (response.attending ?? [])
-              .filter((event) => {
-                const status =
-                  event.attendanceStatus ??
-                  (event as { attendance_status?: string }).attendance_status;
-                return status !== "CANCELLED";
-              })
-              .map((event) => event.id)
-          )
+        const ids = new Set(
+          (response.attending ?? [])
+            .filter((event) => {
+              const status =
+                event.attendanceStatus ??
+                (event as { attendance_status?: string }).attendance_status;
+              return status !== "CANCELLED";
+            })
+            .map((event) => event.id)
         );
+        setRegisteredEventIds(ids);
+        // Seed the cross-page store so the event detail page can pick
+        // this up immediately on navigation without a network round-trip.
+        persistRegisteredEventIds(ids);
       })
       .catch(() => {
         if (!cancelled) {
@@ -283,6 +286,10 @@ export default function HomePage() {
         next.add(eventId);
         return next;
       });
+      // Notify any other open page (e.g. the event detail page) so it can
+      // immediately reflect the new registration state without waiting for
+      // its own re-fetch.
+      recordRegistered(eventId);
       const updateAttendees = (list: EventListItem[]) =>
         list.map((evt) =>
           evt.id === eventId

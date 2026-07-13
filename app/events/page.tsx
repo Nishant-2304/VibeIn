@@ -8,6 +8,10 @@ import EventCard, { EventCardProps } from "../../components/event/EventCard";
 import { EventListSkeleton } from "../../components/ui/SkeletonScreens";
 import { ApiError, eventApi, EventListItem, apiErrorMessage, userApi } from "../../lib/client-api";
 import { createClient } from "../../lib/supabase/client";
+import {
+  recordRegistered,
+  setRegisteredEventIds as persistRegisteredEventIds,
+} from "../../lib/registration-events";
 
 // Card color tokens come from global.css (@theme). The order is deterministically
 // shuffled once at module load so it looks random but stays stable across renders
@@ -166,18 +170,20 @@ export default function EventsFeedPage() {
       .getMyEvents({ role: "attending" })
       .then((response) => {
         if (cancelled) return;
-        setRegisteredEventIds(
-          new Set(
-            (response.attending ?? [])
-              .filter((event) => {
-                const status =
-                  event.attendanceStatus ??
-                  (event as { attendance_status?: string }).attendance_status;
-                return status !== "CANCELLED";
-              })
-              .map((event) => event.id)
-          )
+        const ids = new Set(
+          (response.attending ?? [])
+            .filter((event) => {
+              const status =
+                event.attendanceStatus ??
+                (event as { attendance_status?: string }).attendance_status;
+              return status !== "CANCELLED";
+            })
+            .map((event) => event.id)
         );
+        setRegisteredEventIds(ids);
+        // Seed the cross-page store so the event detail page can pick
+        // this up immediately on navigation.
+        persistRegisteredEventIds(ids);
       })
       .catch(() => {
         if (!cancelled) {
@@ -286,6 +292,8 @@ export default function EventsFeedPage() {
         next.add(eventId);
         return next;
       });
+      // Notify other open pages (e.g. the event detail page).
+      recordRegistered(eventId);
       setEvents((prev) =>
         prev.map((evt) =>
           evt.id === eventId
