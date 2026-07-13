@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../../components/event/EventCard";
 import { EventListSkeleton } from "../../components/ui/SkeletonScreens";
 import { ApiError, eventApi, EventListItem, apiErrorMessage, userApi } from "../../lib/client-api";
+import { createClient } from "../../lib/supabase/client";
 
 // Card color tokens come from global.css (@theme). The order is deterministically
 // shuffled once at module load so it looks random but stays stable across renders
@@ -257,11 +258,23 @@ export default function EventsFeedPage() {
 
   const router = useRouter();
 
-  const handleMakeEvent = () => {
+  const requireLogin = async (): Promise<boolean> => {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) return true;
+    router.push("/login");
+    return false;
+  };
+
+  const handleMakeEvent = async () => {
+    if (!(await requireLogin())) return;
     router.push("/events/create");
   };
 
   const handleJoin = async (eventId: string, e: React.MouseEvent) => {
+    if (!(await requireLogin())) return;
     try {
       setAuthError(null);
       await eventApi.register(eventId);

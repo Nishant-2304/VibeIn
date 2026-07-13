@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import EventCard, { EventCardProps } from "../components/event/EventCard";
 import { EventCardSkeleton } from "../components/ui/SkeletonScreens";
 import { ApiError, eventApi, userApi, EventListItem, apiErrorMessage } from "../lib/client-api";
+import { createClient } from "../lib/supabase/client";
 
 // Card color tokens come from global.css (@theme). Different sections can use
 // different "random-looking" but stable orders. The seed is fixed per section
@@ -259,7 +260,18 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [isPaused]);
 
+  const requireLogin = async (): Promise<boolean> => {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) return true;
+    router.push("/login");
+    return false;
+  };
+
   const handleJoin = async (eventId: string, e: React.MouseEvent) => {
+    if (!(await requireLogin())) return;
     try {
       setAuthError(null);
       await eventApi.register(eventId);
@@ -309,7 +321,8 @@ export default function HomePage() {
 
   const router = useRouter();
 
-  const handleMakeEvent = () => {
+  const handleMakeEvent = async () => {
+    if (!(await requireLogin())) return;
     router.push("/events/create");
   };
 

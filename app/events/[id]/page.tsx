@@ -181,6 +181,11 @@ export default function EventDetailPage({
       return;
     }
 
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+
     setRegistering(true);
     setError(null);
     setErrorNeedsLogin(false);
@@ -210,6 +215,11 @@ export default function EventDetailPage({
   }
 
   async function unregister() {
+    if (!currentUser) {
+      router.push("/login");
+      return;
+    }
+
     setRegistering(true);
     setError(null);
     setErrorNeedsLogin(false);

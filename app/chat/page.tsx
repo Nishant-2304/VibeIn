@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MessageSquare, User, Users, Search } from "lucide-react"; // 💡 Added Search icon
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,7 +11,7 @@ interface ChatRoomListItem {
   name: string | null;
   isGroup: boolean;
   updatedAt: string;
-  members: Array<{ 
+  members: Array<{
     userId: string;
     user?: {
       id: string;
@@ -27,6 +28,7 @@ interface ChatRoomListItem {
 }
 
 export default function ChatInboxPage() {
+  const router = useRouter();
   const [rooms, setRooms] = useState<ChatRoomListItem[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "dms">("all");
   const [searchQuery, setSearchQuery] = useState(""); // 💡 New search state
@@ -38,17 +40,18 @@ export default function ChatInboxPage() {
     async function fetchInbox() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
 
-        if (!token || !session?.user) {
-          setLoading(false);
+        if (!session?.user || !session.access_token) {
+          if (typeof window !== "undefined") {
+            router.replace("/login");
+          }
           return;
         }
 
         setCurrentUserId(session.user.id);
 
         const response = await fetch("/api/chat/rooms", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         });
 
         if (response.ok) {
@@ -63,7 +66,7 @@ export default function ChatInboxPage() {
     }
 
     fetchInbox();
-  }, []);
+  }, [router]);
 
   // 💡 1. First, process the rooms to calculate their titles so we can search against them
   const processedRooms = rooms.map((room) => {

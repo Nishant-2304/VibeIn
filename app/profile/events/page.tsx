@@ -13,6 +13,7 @@ import {
   MyEventItem,
   userApi,
 } from "../../../lib/client-api";
+import { createClient } from "../../../lib/supabase/client";
 
 type Tab = "HOSTED" | "ATTENDED";
 type SubFilter = "UPCOMING" | "ACTIVE" | "COMPLETED";
@@ -125,7 +126,13 @@ export default function MyEventsPage() {
 
   const router = useRouter();
 
-  const handleMakeEvent = () => {
+  const handleMakeEvent = async () => {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push("/login");
+      return;
+    }
     router.push("/events/create");
   };
 
@@ -134,27 +141,35 @@ export default function MyEventsPage() {
     setLoading(true);
     setError(null);
 
-    userApi
-      .getMyEvents()
-      .then((response) => {
+    (async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        if (!cancelled) {
+          router.replace("/login");
+        }
+        return;
+      }
+
+      try {
+        const response = await userApi.getMyEvents();
         if (cancelled) return;
         setHosting(response.hosting ?? []);
         setAttending(response.attending ?? []);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
         setError(apiErrorMessage(err));
         setHosting([]);
         setAttending([]);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
