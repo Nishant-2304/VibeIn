@@ -59,7 +59,7 @@ export function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-1/2 z-[80] w-full max-w-md -translate-x-1/2 px-3 pb-2">
+    <div className="fixed inset-x-0 bottom-0 z-[80] mx-auto w-full max-w-md px-0 pb-0">
       {showGuestBanner && (
         <div className="mb-2 rounded-2xl border border-[#9b72cf]/35 bg-[#18131f]/95 px-3 py-2.5 shadow-[0_6px_24px_rgba(155,114,207,0.18)] backdrop-blur-md">
           <div className="flex items-center justify-between gap-3">

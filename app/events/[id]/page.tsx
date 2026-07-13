@@ -349,7 +349,7 @@ export default function EventDetailPage({
               </div>
             </div>
 
-            {isOnline ? (
+            {isOnline && event.roomNumber ? (
               <a
                 href={event.roomNumber.startsWith("http") ? event.roomNumber : `https://${event.roomNumber}`}
                 target="_blank"
@@ -371,6 +371,20 @@ export default function EventDetailPage({
                   </p>
                 </div>
               </a>
+            ) : isOnline ? (
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-[#c8aaf5]/10 p-2.5 text-[#b792ea]">
+                  <MapPin className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-bold tracking-tight text-[#b792ea]">ONLINE EVENT</p>
+                  <p className="text-xs font-medium text-gray-400">
+                    {isRegistered
+                      ? "Access link will be available when registration opens."
+                      : "Register to get the access link."}
+                  </p>
+                </div>
+              </div>
             ) : isOffline ? (
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-white/5 p-2.5 text-[#b594e6]">
