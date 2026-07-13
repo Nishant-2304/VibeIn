@@ -91,12 +91,14 @@ function toCardProps(
   hosted: boolean
 ): MyEventCardProps {
   const participants = event.participants ?? [];
+  const joined = participants.length || event._count?.participants || 0;
+  const max = event.max_attendees;
 
   return {
     id: event.id,
     title: event.eventname,
     time: formatScheduledAt(event.event_time),
-    joinedCount: `${participants.length || event._count?.participants || 0} Joined`,
+    joinedCount: max ? `${joined}/${max} Joined` : `${joined} Joined`,
     roleBadge: hosted ? "HOST" : "ATTENDING",
     actionText: hosted ? "Manage" : "View Details",
     // Host → manage participants; attendee → view event details. The card

@@ -6,6 +6,7 @@ export interface EventCardProps {
   title: string;
   host: string;
   joinedCount: number;
+  maxAttendees?: number;
   description: string;
   time: string;
   bgColor: string;
@@ -19,6 +20,7 @@ export default function EventCard({
   title,
   host,
   joinedCount,
+  maxAttendees,
   description,
   time,
   bgColor,
@@ -48,6 +50,9 @@ export default function EventCard({
         <div className="flex items-baseline gap-1 mt-1">
           <span className="font-display text-2xl font-black leading-none">
             {joinedCount}
+            {typeof maxAttendees === "number" ? (
+              <span className="text-base font-black opacity-80">/{maxAttendees}</span>
+            ) : null}
           </span>
           <span className="font-bold text-xs opacity-90 tracking-tighter">
             JOINED

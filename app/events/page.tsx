@@ -100,6 +100,7 @@ function toCardProps(
     title: event.name,
     host: event.host?.displayName ?? "Host",
     joinedCount: event.currentAttendees ?? 0,
+    maxAttendees: event.maxAttendees,
     description: event.description ?? "",
     time: formatScheduledAt(event.scheduledAt),
     bgColor: EVENTS_FEED_COLOR_ORDER[index % EVENTS_FEED_COLOR_ORDER.length],

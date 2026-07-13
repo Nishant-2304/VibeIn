@@ -579,6 +579,7 @@ export default function EventDetailPage({
                   <div className="flex items-baseline gap-1 mt-1">
                     <span className="font-display text-2xl font-black leading-none">
                       {event.currentAttendees}
+                      <span className="text-base font-black opacity-80">/{event.maxAttendees}</span>
                     </span>
                     <span className="font-bold text-xs opacity-90 tracking-tighter">JOINED</span>
                   </div>
