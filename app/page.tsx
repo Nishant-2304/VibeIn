@@ -445,6 +445,11 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Page indicator note */}
+        <p className="text-[11px] font-medium text-gray-500 -mt-3">
+          {currentPage + 1}/{totalPages} pages
+        </p>
+
         {/* Vertical Feed: Render only current page slice */}
         <div className="flex flex-col gap-4 min-h-[380px] transition-opacity duration-200">
           {comingUpLoading ? (
