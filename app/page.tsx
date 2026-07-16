@@ -118,8 +118,10 @@ export default function HomePage() {
     }
   }, [registeredEventName]);
 
-  // Pagination State (for "Coming up")
-  const [currentPage, setCurrentPage] = useState(0);
+  // Coming-up horizontal scroll: active page is driven by the scroll
+  // position itself (see the scroll listener below), so we don't track
+  // a separate "currentPage" state — the dots jump-scroll to a target,
+  // and the listener snaps the indicator to whatever page is visible.
 
   // Current user pfp for top-right avatar
   const [myPfp, setMyPfp] = useState<string | null>(null);
@@ -136,6 +138,10 @@ export default function HomePage() {
   // Carousel Autoplay Refs & State
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Coming-up horizontal scroll ref + dot indicator
+  const comingUpScrollRef = useRef<HTMLDivElement>(null);
+  const [activePage, setActivePage] = useState(0);
 
   // Fetch ACTIVE events for "Happening now"
   useEffect(() => {
@@ -185,13 +191,20 @@ export default function HomePage() {
     };
   }, []);
 
-  // Keep the current page within bounds as the dataset changes.
+  // Sync the active horizontal-scroll page index with the underlying
+  // scroll position so the dots reflect whatever page the user swiped to.
   useEffect(() => {
+    const el = comingUpScrollRef.current;
+    if (!el) return;
     const totalPages = Math.max(1, Math.ceil(comingUp.length / EVENTS_PER_PAGE));
-    if (currentPage > totalPages - 1) {
-      setCurrentPage(0);
-    }
-  }, [comingUp, currentPage]);
+    const onScroll = () => {
+      const page = Math.round(el.scrollLeft / el.clientWidth);
+      const clamped = Math.min(Math.max(page, 0), totalPages - 1);
+      setActivePage((prev) => (prev === clamped ? prev : clamped));
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [comingUp]);
 
   // Fetch the current user once so the top-right avatar reflects their emoji.
   useEffect(() => {
@@ -318,14 +331,13 @@ export default function HomePage() {
   );
 
   const totalPages = Math.max(1, Math.ceil(comingUp.length / EVENTS_PER_PAGE));
-  const displayedComingUp = useMemo(() => {
-    const start = currentPage * EVENTS_PER_PAGE;
-    return comingUp
-      .slice(start, start + EVENTS_PER_PAGE)
-      .map((e, i) =>
-        toCardProps(e, COMING_UP_COLOR_ORDER, start + i, handleJoin, registeredEventIds.has(e.id))
-      );
-  }, [comingUp, currentPage, handleJoin, registeredEventIds]);
+  const comingUpCards = useMemo(
+    () =>
+      comingUp.map((e, i) =>
+        toCardProps(e, COMING_UP_COLOR_ORDER, i, handleJoin, registeredEventIds.has(e.id))
+      ),
+    [comingUp, handleJoin, registeredEventIds]
+  );
 
   const router = useRouter();
 
@@ -420,22 +432,27 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ================= SECTION 2: COMING UP (Paginated) ================= */}
+      {/* ================= SECTION 2: COMING UP (Horizontal Scroll) ================= */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between mb-1">
           <h2 className="font-display text-2xl font-black text-white tracking-wide">
             Coming up
           </h2>
 
-          {/* Interactive Pagination Dots */}
+          {/* Interactive Pagination Dots — tap to jump to that page */}
           <div className="flex items-center gap-2 bg-white/5 px-2.5 py-1.5 rounded-full">
             {Array.from({ length: totalPages }).map((_, idx) => (
               <button
                 key={idx}
                 type="button"
-                onClick={() => setCurrentPage(idx)}
+                onClick={() => {
+                  const el = comingUpScrollRef.current;
+                  if (el) {
+                    el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
+                  }
+                }}
                 className={`transition-all duration-300 rounded-full cursor-pointer ${
-                  currentPage === idx
+                  activePage === idx
                     ? "w-4 h-2 bg-[#c8aaf5]"
                     : "w-2 h-2 bg-white/20 hover:bg-white/40"
                 }`}
@@ -447,40 +464,75 @@ export default function HomePage() {
 
         {/* Page indicator note */}
         <p className="text-[11px] font-medium text-gray-500 -mt-3">
-          {currentPage + 1}/{totalPages} pages
+          {activePage + 1}/{totalPages} pages · swipe to browse
         </p>
 
-        {/* Vertical Feed: Render only current page slice */}
-        <div className="flex flex-col gap-4 min-h-[380px] transition-opacity duration-200">
-          {comingUpLoading ? (
-            <div className="flex flex-col gap-4">
-              <EventCardSkeleton showAvatars={false} />
-              <EventCardSkeleton showAvatars={false} />
-            </div>
-          ) : comingUpError && comingUp.length === 0 ? (
-            <div
-              role="alert"
-              className="flex flex-col items-center justify-center py-12 gap-2 text-center"
-            >
-              <AlertCircle className="w-6 h-6 text-red-400" />
-              <p className="text-red-300 text-xs font-semibold">
-                We couldn&apos;t load upcoming events.
-              </p>
-              <p className="text-gray-400 text-[11px] font-medium max-w-xs">
-                {comingUpError}
-              </p>
-            </div>
-          ) : displayedComingUp.length > 0 ? (
-            displayedComingUp.map((evt, idx) => (
-              <EventCard key={`${evt.title}-${currentPage}-${idx}`} {...evt} />
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-sm font-medium">
-                No upcoming events yet. Be the first to host one!
-              </p>
-            </div>
-          )}
+        {/* Horizontal scroll feed. Each "page" of EVENTS_PER_PAGE events
+            fills the viewport width; scroll-snap makes swipes land cleanly
+            on the next page. Touch users scroll naturally, the dot indicator
+            stays in sync via the scroll listener above. */}
+        <div className="overflow-hidden">
+          <div
+            ref={comingUpScrollRef}
+            className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden -mx-5"
+          >
+            {comingUpLoading ? (
+              Array.from({ length: totalPages }).map((_, pageIdx) => (
+                <div
+                  key={`skel-page-${pageIdx}`}
+                  className="w-full shrink-0 snap-start px-5"
+                >
+                  <div className="flex flex-col gap-4 min-h-[380px]">
+                    <EventCardSkeleton showAvatars={false} />
+                    <EventCardSkeleton showAvatars={false} />
+                  </div>
+                </div>
+              ))
+            ) : comingUpError && comingUpCards.length === 0 ? (
+              <div className="w-full shrink-0 snap-start px-5">
+                <div
+                  role="alert"
+                  className="flex flex-col items-center justify-center py-12 gap-2 text-center"
+                >
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                  <p className="text-red-300 text-xs font-semibold">
+                    We couldn&apos;t load upcoming events.
+                  </p>
+                  <p className="text-gray-400 text-[11px] font-medium max-w-xs">
+                    {comingUpError}
+                  </p>
+                </div>
+              </div>
+            ) : comingUpCards.length > 0 ? (
+              Array.from({ length: totalPages }).map((_, pageIdx) => {
+                const start = pageIdx * EVENTS_PER_PAGE;
+                const pageItems = comingUpCards.slice(start, start + EVENTS_PER_PAGE);
+                return (
+                  <div
+                    key={`page-${pageIdx}`}
+                    className="w-full shrink-0 snap-start px-5"
+                  >
+                    <div className="flex flex-col gap-4 min-h-[380px]">
+                      {pageItems.map((evt, idx) => (
+                        <EventCard
+                          key={`${evt.title}-${pageIdx}-${idx}`}
+                          {...evt}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="w-full shrink-0 snap-start px-5">
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-sm font-medium">
+                    No upcoming events yet. Be the first to host one!
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

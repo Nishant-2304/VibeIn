@@ -13,6 +13,9 @@ import {
 import { getHostelsForGender } from "../../../../lib/constants";
 import { createClient } from "../../../../lib/supabase/client";
 
+type EventType = "PHYSICAL" | "ONLINE" | "OFFLINE";
+type OfflineAudience = "YOUR_GENDER" | "CO_ED";
+
 type FormState = {
   name: string;
   description: string;
@@ -22,6 +25,8 @@ type FormState = {
   scheduledAt: string;
   maxAttendees: string;
   durationMinutes: string;
+  eventType: EventType;
+  offlineAudience: OfflineAudience;
 };
 
 const emptyForm: FormState = {
@@ -33,6 +38,8 @@ const emptyForm: FormState = {
   scheduledAt: "",
   maxAttendees: "8",
   durationMinutes: "120",
+  eventType: "PHYSICAL",
+  offlineAudience: "YOUR_GENDER",
 };
 
 // Convert an ISO timestamp into the value expected by
@@ -44,7 +51,20 @@ function toLocalInputValue(iso: string) {
   return new Date(date.getTime() - tzOffsetMs).toISOString().slice(0, 16);
 }
 
+function inferEventType(hostel: string): EventType {
+  const normalized = hostel?.trim().toUpperCase() ?? "";
+  if (normalized === "ONLINE") return "ONLINE";
+  if (normalized.startsWith("OFFLINE-")) return "OFFLINE";
+  return "PHYSICAL";
+}
+
+function inferOfflineAudience(hostel: string): OfflineAudience {
+  const normalized = hostel?.trim().toUpperCase() ?? "";
+  return normalized.includes("CO_ED") ? "CO_ED" : "YOUR_GENDER";
+}
+
 function detailToForm(event: EventDetail): FormState {
+  const eventType = inferEventType(event.hostel ?? "");
   return {
     name: event.name ?? "",
     description: event.description ?? "",
@@ -56,6 +76,8 @@ function detailToForm(event: EventDetail): FormState {
     durationMinutes: String(
       (event as EventDetail & { durationMinutes?: number }).durationMinutes ?? 120
     ),
+    eventType,
+    offlineAudience: inferOfflineAudience(event.hostel ?? ""),
   };
 }
 
@@ -68,7 +90,9 @@ function shallowEqualForm(a: FormState, b: FormState) {
     a.roomNumber === b.roomNumber &&
     a.scheduledAt === b.scheduledAt &&
     a.maxAttendees === b.maxAttendees &&
-    a.durationMinutes === b.durationMinutes
+    a.durationMinutes === b.durationMinutes &&
+    a.eventType === b.eventType &&
+    a.offlineAudience === b.offlineAudience
   );
 }
 
@@ -140,6 +164,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   // new hostel if they actually want to change it.
   useEffect(() => {
     if (!isUserLoaded || !original) return;
+    if (original.eventType !== "PHYSICAL") return;
     if (allowedHostels.length === 0) return;
     if (original.hostel && !allowedHostels.includes(original.hostel)) {
       const next = { ...original, hostel: allowedHostels[0] };
@@ -174,13 +199,25 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       setError("Event name must be between 3 and 100 characters.");
       return;
     }
-    if (!Number.isInteger(floor) || floor < 0) {
-      setError("Enter a valid floor number.");
-      return;
-    }
-    if (!form.hostel || !allowedHostels.includes(form.hostel)) {
-      setError("Select a valid hostel for your gender.");
-      return;
+    if (form.eventType === "ONLINE") {
+      if (!form.roomNumber.trim()) {
+        setError("Please provide a valid online meeting link or platform name.");
+        return;
+      }
+    } else if (form.eventType === "OFFLINE") {
+      if (!form.roomNumber.trim()) {
+        setError("Please provide an offline campus location for the event.");
+        return;
+      }
+    } else {
+      if (!Number.isInteger(floor) || floor < 0) {
+        setError("Enter a valid floor number.");
+        return;
+      }
+      if (!form.hostel || !allowedHostels.includes(form.hostel)) {
+        setError("Select a valid hostel for your gender.");
+        return;
+      }
     }
     if (!Number.isInteger(maxAttendees) || maxAttendees < 2) {
       setError("Maximum attendees must be at least 2.");
@@ -204,11 +241,20 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
       // first registration, etc.), so omitting unchanged fields avoids
       // re-asserting the original values and tripping locked-field errors.
       const patch: Record<string, unknown> = {};
+      const normalizedHostel =
+        form.eventType === "ONLINE"
+          ? "ONLINE"
+          : form.eventType === "OFFLINE"
+            ? `OFFLINE-${form.offlineAudience}`
+            : form.hostel.trim();
+      const normalizedFloor = form.eventType === "ONLINE" || form.eventType === "OFFLINE" ? 0 : floor;
+      const normalizedRoomNumber = form.roomNumber.trim();
+
       if (!original || form.name !== original.name) patch.name = form.name.trim();
       if (!original || form.description !== original.description) patch.description = form.description.trim();
-      if (!original || form.hostel !== original.hostel) patch.hostel = form.hostel.trim();
-      if (!original || form.floor !== original.floor) patch.floor = floor;
-      if (!original || form.roomNumber !== original.roomNumber) patch.roomNumber = form.roomNumber.trim();
+      if (!original || normalizedHostel !== (original.hostel ?? "")) patch.hostel = normalizedHostel;
+      if (!original || normalizedFloor !== Number(original.floor)) patch.floor = normalizedFloor;
+      if (!original || normalizedRoomNumber !== (original.roomNumber ?? "")) patch.roomNumber = normalizedRoomNumber;
       if (!original || form.scheduledAt !== original.scheduledAt)
         patch.scheduledAt = scheduledAt.toISOString();
       if (!original || form.maxAttendees !== original.maxAttendees) patch.maxAttendees = maxAttendees;
@@ -248,32 +294,90 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
           <label className="block">Description
             <textarea rows={5} value={form.description} onChange={(e) => update("description", e.target.value)} className={fieldClass} />
           </label>
-          <label className="block">Hostel
-            <select
-              required
-              value={form.hostel}
-              disabled={!isUserLoaded || allowedHostels.length === 0}
-              onChange={(e) => update("hostel", e.target.value)}
-              className={fieldClass}
-            >
-              {allowedHostels.map((hostel) => (
-                <option key={hostel} value={hostel}>
-                  {hostel}
-                </option>
-              ))}
-            </select>
-            {userGender && (
-              <span className="block text-[11px] text-white/40 font-medium mt-1">
-                {userGender === "MALE"
-                  ? "Boys' hostels only — your event will only be visible to boys."
-                  : "Girls' hostels only — your event will only be visible to girls."}
-              </span>
-            )}
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label>Floor<input required type="number" min={0} value={form.floor} onChange={(e) => update("floor", e.target.value)} className={fieldClass} /></label>
-            <label>Room number<input required value={form.roomNumber} onChange={(e) => update("roomNumber", e.target.value)} className={fieldClass} /></label>
+
+          <div className="rounded-2xl border border-white/10 bg-[#16161A] p-1">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => update("eventType", "PHYSICAL")}
+                className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${form.eventType === "PHYSICAL" ? "bg-[#b792ea] text-[#3b2466]" : "text-white/70"}`}
+              >
+                In Hostel
+              </button>
+              <button
+                type="button"
+                onClick={() => update("eventType", "OFFLINE")}
+                className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${form.eventType === "OFFLINE" ? "bg-[#b792ea] text-[#3b2466]" : "text-white/70"}`}
+              >
+                Offline Event
+              </button>
+              <button
+                type="button"
+                onClick={() => update("eventType", "ONLINE")}
+                className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${form.eventType === "ONLINE" ? "bg-[#b792ea] text-[#3b2466]" : "text-white/70"}`}
+              >
+                Online Event
+              </button>
+            </div>
           </div>
+
+          {form.eventType === "PHYSICAL" ? (
+            <>
+              <label className="block">Hostel
+                <select
+                  required
+                  value={form.hostel}
+                  disabled={!isUserLoaded || allowedHostels.length === 0}
+                  onChange={(e) => update("hostel", e.target.value)}
+                  className={fieldClass}
+                >
+                  {allowedHostels.map((hostel) => (
+                    <option key={hostel} value={hostel}>
+                      {hostel}
+                    </option>
+                  ))}
+                </select>
+                {userGender && (
+                  <span className="block text-[11px] text-white/40 font-medium mt-1">
+                    {userGender === "MALE"
+                      ? "Boys' hostels only — your event will only be visible to boys."
+                      : "Girls' hostels only — your event will only be visible to girls."}
+                  </span>
+                )}
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label>Floor<input required type="number" min={0} value={form.floor} onChange={(e) => update("floor", e.target.value)} className={fieldClass} /></label>
+                <label>Room number<input required value={form.roomNumber} onChange={(e) => update("roomNumber", e.target.value)} className={fieldClass} /></label>
+              </div>
+            </>
+          ) : form.eventType === "OFFLINE" ? (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-[#16161A] p-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => update("offlineAudience", "YOUR_GENDER")}
+                  className={`flex-1 rounded-xl border px-3 py-3 text-sm font-semibold transition ${form.offlineAudience === "YOUR_GENDER" ? "border-[#b792ea] bg-[#b792ea] text-[#3b2466]" : "border-white/10 bg-transparent text-white"}`}
+                >
+                  Your Gender
+                </button>
+                <button
+                  type="button"
+                  onClick={() => update("offlineAudience", "CO_ED")}
+                  className={`flex-1 rounded-xl border px-3 py-3 text-sm font-semibold transition ${form.offlineAudience === "CO_ED" ? "border-[#b792ea] bg-[#b792ea] text-[#3b2466]" : "border-white/10 bg-transparent text-white"}`}
+                >
+                  Co-ed
+                </button>
+              </div>
+              <label className="block">Offline location
+                <input required value={form.roomNumber} onChange={(e) => update("roomNumber", e.target.value)} placeholder="Library lawn, canteen terrace, sports complex..." className={fieldClass} />
+              </label>
+            </div>
+          ) : (
+            <label className="block">Meeting link / platform
+              <input required value={form.roomNumber} onChange={(e) => update("roomNumber", e.target.value)} placeholder="Zoom, Google Meet, Discord, Twitch..." className={fieldClass} />
+            </label>
+          )}
+
           <label className="block">Date and time
             <input required type="datetime-local" value={form.scheduledAt} onChange={(e) => update("scheduledAt", e.target.value)} className={fieldClass} />
           </label>
