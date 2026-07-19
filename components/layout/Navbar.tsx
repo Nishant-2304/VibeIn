@@ -10,6 +10,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const isReviewPage = pathname.includes("/reviews");
   const [showGuestBanner, setShowGuestBanner] = useState(false);
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -20,8 +21,43 @@ export function BottomNav() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (isMounted) {
-        setShowGuestBanner(!session);
+      if (!isMounted) return;
+
+      setShowGuestBanner(!session);
+
+      if (!session) {
+        setShowOnboardingBanner(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/users/me", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (!isMounted) return;
+
+        if (!res.ok) {
+          setShowOnboardingBanner(false);
+          return;
+        }
+
+        const user = await res.json();
+        const isIncomplete =
+          !user?.displayName ||
+          !user?.pfp ||
+          !user?.college ||
+          !user?.gender ||
+          !user?.hostel ||
+          user?.floor == null;
+
+        setShowOnboardingBanner(isIncomplete);
+      } catch {
+        if (isMounted) {
+          setShowOnboardingBanner(false);
+        }
       }
     };
 
@@ -32,6 +68,13 @@ export function BottomNav() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted) {
         setShowGuestBanner(!session);
+
+        if (!session) {
+          setShowOnboardingBanner(false);
+          return;
+        }
+
+        void syncSession();
       }
     });
 
@@ -59,7 +102,7 @@ export function BottomNav() {
   ];
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[80] mx-auto w-full max-w-md px-0 pb-0">
+    <div className="fixed inset-x-0 bottom-0 z-[80] mx-auto w-full max-w-md px-3 pb-2">
       {showGuestBanner && (
         <div className="mb-2 rounded-2xl border border-[#9b72cf]/35 bg-[#18131f]/95 px-3 py-2.5 shadow-[0_6px_24px_rgba(155,114,207,0.18)] backdrop-blur-md">
           <div className="flex items-center justify-between gap-3">
@@ -69,6 +112,23 @@ export function BottomNav() {
               className="inline-flex shrink-0 items-center rounded-full bg-[#c8aaf5] px-3 py-1.5 text-[11px] font-black text-[#2c124d] transition active:scale-[0.98]"
             >
               Sign in
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {!showGuestBanner && showOnboardingBanner && (
+        <div className="mb-2 rounded-2xl border border-[#9b72cf]/35 bg-[#18131f]/95 px-3 py-2.5 shadow-[0_6px_24px_rgba(155,114,207,0.18)] backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-gray-100">Complete your onboarding</p>
+              <p className="text-[10px] text-gray-400">Finish your profile setup to unlock the full experience.</p>
+            </div>
+            <Link
+              href="/onboarding"
+              className="inline-flex shrink-0 items-center rounded-full bg-[#c8aaf5] px-3 py-1.5 text-[11px] font-black text-[#2c124d] transition active:scale-[0.98]"
+            >
+              Continue
             </Link>
           </div>
         </div>
